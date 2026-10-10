@@ -277,6 +277,38 @@ window.__ModuleLoader__.load({
     }
 
     /**
+     * The largest tint of `seed` into `base` on which *every* colour in `texts`
+     * still clears `target`.
+     *
+     * `tint` solves for one colour, which is right when a wash carries one. These
+     * washes do not. `state-warn-tertiary` is the approval strip
+     * (`state-warn-primary`), the connection indicator (`.warning`, drawn in
+     * `state-warn-label`), the install-safety note (`label-secondary`) and, by
+     * inheritance, an approval card's `label-primary` — and which of them binds is
+     * not the same one in light and in dark. Solving the constraints together is
+     * what makes the answer follow the palette instead of a hand-picked fraction.
+     *
+     * @param base - the surface the tint is laid over.
+     * @param seed - the colour the wash is made of.
+     * @param texts - every colour drawn on the wash.
+     * @param target - the contrast each of them needs.
+     * @param cap - the most tint to allow, so the result stays a wash.
+     * @returns the tinted colour, or `base` when no tint at all meets the target.
+     */
+    function wash(base, seed, texts, target, cap = 0.5) {
+      const ok = (amount) => texts.every((color) => contrast(color, mix(base, seed, amount)) >= target)
+      if (ok(cap)) return mix(base, seed, cap)
+      let low = 0
+      let high = cap
+      for (let step = 0; step < 24; step += 1) {
+        const mid = (low + high) / 2
+        if (ok(mid)) low = mid
+        else high = mid
+      }
+      return mix(base, seed, low)
+    }
+
+    /**
      * How far to travel from `base` toward `toward` before reaching `target`
      * contrast.
      *
@@ -535,6 +567,7 @@ window.__ModuleLoader__.load({
       // be *no less* legible than what DSH already ships, not merely close.
       // `label-primary` is the ink itself; only the tiers under it are solved.
       const labelPrimary = ink
+      const labelBlish = mix(ink, accent, 0.15)
       const labelSecondary = reach(canvas, ink, dark ? 12.2 : 5.85)
       const labelTertiary = reach(canvas, ink, dark ? 8.6 : 3.76)
       const labelCaption = reach(canvas, ink, dark ? 4.97 : 2.18)
@@ -562,6 +595,17 @@ window.__ModuleLoader__.load({
       const accentHover = dark ? mix(accent, BLACK, 0.15) : mix(accent, WHITE, 0.12)
       const menuSurface = alpha(overlay, dark ? 0.45 : 0.58)
       const tooltipBg = dark ? nested : mix(canvas, ink, 0.84)
+
+      // The semantic state colours, named rather than inlined because the washes
+      // below are solved against the exact colours drawn on them.
+      const success = dark ? '#7cc39c' : '#3d7351'
+      const warn = dark ? '#e0a44e' : '#8a5a1e'
+      const warnLabel = dark ? '#e8b466' : '#8a5a1e'
+      // Every wash is solved for 4.5:1 — WCAG AA for the 11-13 px text these
+      // washes carry — and the target sits a hair above it for the same reason the
+      // text tiers do: `mix` rounds to 8-bit, so a solve that lands exactly on the
+      // floor can round a hair under it.
+      const WASH_TARGET = 4.6
 
       return {
         // Surfaces.
@@ -594,7 +638,7 @@ window.__ModuleLoader__.load({
         '--dsw-alias-label-caption': labelCaption,
         '--dsw-alias-label-dimmed': labelDimmed,
         '--dsw-alias-label-primary-dimmed': text(0.96),
-        '--dsw-alias-label-primary-bluish': mix(ink, accent, 0.15),
+        '--dsw-alias-label-primary-bluish': labelBlish,
         '--dsw-alias-label-primary-foreground': dark ? mix(canvas, BLACK, 0.9) : WHITE,
         '--dsw-alias-label-primary-inverted': dark ? nested : WHITE,
         '--dsw-alias-label-document-preview': labelSecondary,
@@ -618,13 +662,28 @@ window.__ModuleLoader__.load({
         // warm-paper equivalents, solved to clear 4.5:1 on every one of the five canvases.
         '--dsw-alias-state-error-primary': dark ? '#f0908a' : '#b3261e',
         '--dsw-alias-state-error-secondary': dark ? '#e0645c' : '#d2453a',
-        '--dsw-alias-state-success-primary': dark ? '#7cc39c' : '#3d7351',
+        '--dsw-alias-state-success-primary': success,
         '--dsw-alias-state-success-secondary': dark ? '#62a87c' : '#55946b',
-        '--dsw-alias-state-success-tertiary': mix(canvas, dark ? '#7cc39c' : '#3d7351', dark ? 0.22 : 0.12),
-        '--dsw-alias-state-warn-primary': dark ? '#e0a44e' : '#8a5a1e',
+        // The wash is solved, not fractioned — and solved against *all* the text
+        // that lands on it, which is the part a fixed 12 % / 22 % mix got wrong.
+        // `success` alone carries three: the state's own primary (`.success` in
+        // the connection indicator), and the two blends the chat transcript draws
+        // with the label tiers (`.rkta1W_contextGreen`, `.rkta1W_promptDiffLineadded`).
+        '--dsw-alias-state-success-tertiary': wash(
+          canvas,
+          success,
+          [success, mix(success, labelSecondary, 0.32), mix(success, labelPrimary, 0.28)],
+          WASH_TARGET,
+        ),
+        '--dsw-alias-state-warn-primary': warn,
         '--dsw-alias-state-warn-secondary': dark ? '#c98a2e' : '#b45309',
-        '--dsw-alias-state-warn-label': dark ? '#e8b466' : '#8a5a1e',
-        '--dsw-alias-state-warn-tertiary': mix(canvas, dark ? '#e0a44e' : '#8a5a1e', dark ? 0.22 : 0.12),
+        '--dsw-alias-state-warn-label': warnLabel,
+        // Four consumers, four colours, and the binding one differs by mode: the
+        // approval strip (`.gOeFyG_strip`, `warn`), the connection indicator
+        // (`.warning`, `warnLabel`), the install-safety note
+        // (`.ZVcBiW_installSafety`, `label-secondary`) and an approval card's
+        // inherited `label-primary`.
+        '--dsw-alias-state-warn-tertiary': wash(canvas, warn, [warnLabel, warn, labelSecondary, labelPrimary], WASH_TARGET),
 
         // The business state is what `--dsw-focus-ring-color` falls back to, so
         // overriding it is what makes the focus ring follow the theme.
@@ -634,10 +693,9 @@ window.__ModuleLoader__.load({
         // the canvas) in dark, and this token is consumed as the background UNDER
         // accent text (`ui-plan`'s chip) and under `label-primary-bluish`
         // (`ui-conversation`). Letting the accent itself in collapses that text to
-        // ~1.3:1, so the tint is solved for the accent's own legibility.
-        '--dsw-alias-state-business-tertiary': dark
-          ? tint(canvas, accent, 4.5)
-          : tint(WHITE, accent, 3.7),
+        // ~1.3:1. The wash is opaque, so the base is a colour choice rather than a
+        // composite — the canvas keeps all three washes warm and on a common rule.
+        '--dsw-alias-state-business-tertiary': wash(canvas, accent, [accent, labelBlish, labelPrimary], WASH_TARGET),
 
         // Buttons.
         '--dsw-alias-button-primary-fill': brandPrimary,
@@ -709,7 +767,7 @@ window.__ModuleLoader__.load({
         // a real fill, with `ui-conversation` painting a white-text primary button
         // in it — so the wash is solved the way `state-business-tertiary` is: the
         // largest tint of the accent that still leaves the accent legible on it.
-        '--dsw-specific-sidebar-nav-item-active-accent': tint(dark ? canvas : WHITE, accent, 4.5),
+        '--dsw-specific-sidebar-nav-item-active-accent': tint(dark ? canvas : WHITE, accent, WASH_TARGET),
         '--dsw-specific-bubble': bubble,
         '--dsw-specific-bubble-highlight': mix(bubble, accent, dark ? 0.18 : 0.1),
         '--dsw-specific-input-major': composer,

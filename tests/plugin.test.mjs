@@ -823,24 +823,50 @@ test('chip text is legible on its own surface', () => {
   }
 })
 
-test('tokens consumed as a background keep their own text legible', () => {
-  // The gap this closes: measuring every tier only against `bg-base` cannot see a
-  // wash token that is consumed *under* accent text. `ui-plan` draws its chip as
-  // `background: state-business-tertiary; color: state-business-primary`, and
-  // `ui-conversation` draws `label-primary-bluish` over the same wash.
+test('every wash keeps every colour drawn on it legible', () => {
+  // The gap this closes: measuring the text tiers against `bg-base` alone cannot
+  // see a wash token consumed *under* other colours. Each wash below is solved
+  // for all of its consumers, and this pins the solve.
+  //
+  // Only the endpoints of each blend are asserted, and that is sufficient rather
+  // than a shortcut: every colour listed here sits on the same side of the wash's
+  // luminance (all darker in light mode, all lighter in dark), and a mix of two
+  // such colours lands between them — so no blend can contrast *less* than the
+  // worse endpoint, whatever fraction the consumer picks.
+  const WASHES = [
+    ['--dsw-alias-state-success-tertiary', [
+      // `.success` (ui-primitives ConnectionIndicator), and the two blends the
+      // transcript draws: `.rkta1W_contextGreen`, `.rkta1W_promptDiffLineadded`.
+      '--dsw-alias-state-success-primary', '--dsw-alias-label-secondary', '--dsw-alias-label-primary',
+    ]],
+    ['--dsw-alias-state-warn-tertiary', [
+      // `.gOeFyG_strip` (approval), `.warning` (ConnectionIndicator),
+      // `.ZVcBiW_installSafety` (plugin-manager), and `.ZVcBiW_approval`'s
+      // inherited label.
+      '--dsw-alias-state-warn-label', '--dsw-alias-state-warn-primary',
+      '--dsw-alias-label-secondary', '--dsw-alias-label-primary',
+    ]],
+    ['--dsw-alias-state-business-tertiary', [
+      // `ui-plan`'s chip, `.bocITq_previewBadge`, and `.f30p-W_reference:hover`.
+      '--dsw-alias-state-business-primary', '--dsw-alias-label-primary-bluish', '--dsw-alias-label-primary',
+    ]],
+  ]
   for (const id of THEME_IDS) {
     const tokens = mount({ boot: id }).tokens()
     for (const mode of ['light', 'dark']) {
-      const wash = tokens['--dsw-alias-state-business-tertiary'][mode]
-      const chip = contrast(tokens['--dsw-alias-state-business-primary'][mode], wash)
-      const floor = mode === 'light' ? 3.6 : 4.39
-      assert.ok(chip >= floor - 0.02, `${id}/${mode}: accent on its wash ${chip.toFixed(2)} < ${floor}`)
+      for (const [name, texts] of WASHES) {
+        const wash = tokens[name][mode]
+        for (const text of texts) {
+          const ratio = contrast(tokens[text][mode], wash)
+          assert.ok(ratio >= 4.5, `${id}/${mode}: ${text} on ${name} is ${ratio.toFixed(2)}:1`)
+        }
+      }
 
-      const body = contrast(tokens['--dsw-alias-label-primary-bluish'][mode], wash)
       // The built-in palette reaches 10.53:1 in light mode because its accent is
       // a far darker, cooler blue than any warm accent can be. 6.5 is the floor
       // held here instead: still well clear of WCAG AA for body text, and the
       // token keeps the accent-tinted character its name promises.
+      const body = contrast(tokens['--dsw-alias-label-primary-bluish'][mode], tokens['--dsw-alias-state-business-tertiary'][mode])
       assert.ok(body >= 6.5, `${id}/${mode}: label on the wash ${body.toFixed(2)} < 6.5`)
     }
   }

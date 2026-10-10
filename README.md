@@ -28,7 +28,7 @@ Five themes for the **DeepSeek Harness** Web client. Each ships a **light and a 
 
 | 填入 | 形式 |
 |---|---|
-| GitHub | `github:kjx-talesofai/dsh-plugin-theme-workbench#v0.1.1`（当前可用） |
+| GitHub | `github:kjx-talesofai/dsh-plugin-theme-workbench#v0.1.2`（当前可用） |
 | 本地目录 | 绝对路径，例如 `/path/to/dsh-plugin-theme-workbench` |
 
 装完**重启桌面端**（host 半边只在启动时加载）。之后换主题**不用刷新、也不用再重启**。
@@ -76,7 +76,7 @@ Each theme is **three seed colours per mode** — a canvas, an ink and an accent
 Use DSH's plugin install dialog (**Add plugin**) with either of these, then restart the desktop app:
 
 ```text
-github:kjx-talesofai/dsh-plugin-theme-workbench#v0.1.1   # GitHub, pinned to this release
+github:kjx-talesofai/dsh-plugin-theme-workbench#v0.1.2   # GitHub, pinned to this release
 /absolute/path/to/dsh-plugin-theme-workbench             # local checkout (dev)
 ```
 
@@ -85,7 +85,7 @@ github:kjx-talesofai/dsh-plugin-theme-workbench#v0.1.1   # GitHub, pinned to thi
 CLI equivalent:
 
 ```sh
-dsh plugin --profile desktop add github:kjx-talesofai/dsh-plugin-theme-workbench#v0.1.1
+dsh plugin --profile desktop add github:kjx-talesofai/dsh-plugin-theme-workbench#v0.1.2
 ```
 
 To upgrade, uninstall first and then install the new revision — reinstalling over an existing row is not supported.
@@ -144,7 +144,9 @@ The palette is derived, not tabulated, and the rules are the point — they were
 
 **Text tiers and semantic states are solved, not inherited.** Each text tier is solved for the contrast the *built-in* palette reaches (light 5.8 / 3.71 / 2.13), so a soft sepia or sage ink is exactly as legible as the shipped near-black one. The built-in semantic states are tuned for `#ffffff` and are legibility failures on warm paper — measured on the cream canvas, `state-warn-primary` is 1.94:1, `state-warn-label` 2.52:1, `state-success-primary` 2.06:1 and `state-error-primary` 4.06:1 — so each theme supplies warm-paper equivalents. The focus ring clears 4.5:1 on all sixty surface pairs.
 
-**A token spent as a background *under* accent-coloured text is solved for that text, not for its own name.** Two of them are: the plan chip's wash (`state-business-tertiary`), and `sidebar-nav-item-active-accent`, whose only consumer in 0.2.0-rc.2 is the question card's "Recommended" chip. Its name reads like an active-row accent and it is declared as one, so deriving it that way — a 12–22 % mix of the accent into the sidebar, sitting under the accent itself — puts the label at **1.25–1.53:1 in all ten palettes**: not faint, invisible. Both are now the largest tint of the accent that still leaves the accent legible on it (the chip clears 4.5:1; the shipped palette's own pairing reaches 3.60:1 in light mode).
+**Every token spent as a background is solved for *all* the text drawn on it, not for its own name.** Three washes and one badge are. The failure mode is the same each time: the token's name describes a role (`sidebar-nav-item-active-accent`, `state-success-tertiary`), so deriving it from that role — a 12–22 % mix of the accent into the sidebar, a fixed fraction into the canvas — leaves the label sitting on its own colour, at **1.25–1.53:1 in all ten palettes** for the badge and 4.21–4.48:1 for the success chip. Not faint: invisible, in the badge's case. All four are now the largest tint that keeps every colour drawn on them at 4.5:1, solved together rather than per text, because which text binds differs by mode (the built-in pairing reaches only 3.60:1 in light mode for the same chip).
+
+The set is enumerated from the archive rather than guessed: [`tools/audit-contrast.mjs`](tools/audit-contrast.mjs) mines every rule in the shipped bundle that paints a colour on a background and re-measures it under all ten palettes. It is how the badge was found, and it is what `npm test` cannot do on its own — a test can only check a pairing someone already knew about.
 
 Everything above is measured by the test suite: the direction of every step, the 6 L\* ceiling inside a light palette, the L\* 98.5 warm-gamut ceiling, chroma retention across the ramp, the text ladder, and every contrast floor.
 
@@ -196,9 +198,11 @@ Repo layout — **sources vs artifacts**:
 | `docs/token-inventory.md` | the DSH 0.2.0-rc.2 token surface: where the light/dark palettes live, how a snapshot reaches the DOM, all 107 alias names, and the traps | ✗ |
 | `docs/surface-map.md` | which token paints which surface, what is re-declared locally, and what a `body`-level override can never reach | ✗ |
 | `docs/design-notes.md` | the warm-paper design specification the surface ramp is built from: reference palettes with citations, the elevation recipe, chroma and hue discipline, anti-patterns | ✗ |
+| `docs/readability-audit.md` | what that audit found, its coverage limits, and the one finding left open | ✗ |
 | `tools/asar.mjs` | read-only ASAR reader used to inspect the app bundle | ✗ |
+| `tools/audit-contrast.mjs` | the archive-wide readability audit: every rule that paints a colour on a background, re-measured under all ten palettes | ✗ |
 
-The three `docs/` references are the research behind the numbers and are deliberately kept in the repo: two describe the platform (what is themeable, what is not), and the third is the design argument. None of them ship.
+The `docs/` references are the research behind the numbers and are deliberately kept in the repo: two describe the platform (what is themeable, what is not), the third is the design argument, and the fourth is the audit that re-checks the result against the shipped archive. None of them ship.
 
 ## Uninstall
 

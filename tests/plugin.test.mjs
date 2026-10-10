@@ -168,12 +168,24 @@ const NEUTRAL_RAMP_CONSUMERS = [
 
 /** Semantic families the themes deliberately inherit from the built-in palette. */
 const INHERITED = [
-  '--dsw-alias-state-error-primary', '--dsw-alias-state-error-secondary',
-  '--dsw-alias-state-success-primary', '--dsw-alias-state-success-secondary', '--dsw-alias-state-success-tertiary',
-  '--dsw-alias-state-warn-primary', '--dsw-alias-state-warn-secondary', '--dsw-alias-state-warn-tertiary',
-  '--dsw-alias-state-warn-label', '--dsw-alias-state-idle-primary',
+  '--dsw-alias-state-idle-primary',
   '--dsw-alias-code-diff-added', '--dsw-alias-code-diff-deleted',
   '--dsw-alias-bg-document-selection',
+]
+
+/** States read as text, so they must clear 4.5:1 on the canvas. */
+const TEXT_STATES = [
+  '--dsw-alias-state-error-primary',
+  '--dsw-alias-state-success-primary',
+  '--dsw-alias-state-warn-primary',
+  '--dsw-alias-state-warn-label',
+]
+
+/** States used as fills or indicators, held to the 3:1 non-text threshold. */
+const FILL_STATES = [
+  '--dsw-alias-state-error-secondary',
+  '--dsw-alias-state-success-secondary',
+  '--dsw-alias-state-warn-secondary',
 ]
 
 const ALLOWED = new Set([...SHIPPED_ALIASES, ...SHIPPED_SPECIFIC, ...Object.keys(SHIPPED_NEUTRAL_RAMP)])
@@ -574,48 +586,76 @@ function chroma(hex) {
   return Math.max(r, g, b) - Math.min(r, g, b)
 }
 
-test('the raised ramp climbs away from the canvas in every theme and mode', () => {
+test('in light mode content surfaces step DOWN from the canvas; in dark they step up', () => {
+  // The direction is the whole point. A lighter warm surface cannot stay warm —
+  // at L* 97-99 there is no sRGB room left for chroma — and physically a raised
+  // sheet is shadowed, so 'raised' reads as darker. Dark mode inverts it because
+  // emission adds light. Only surfaces that genuinely float may sit above the
+  // canvas in light mode.
+  const content = [
+    '--dsw-alias-bg-layer-1',
+    '--dsw-alias-bg-layer-2',
+    '--dsw-specific-input-major',
+    '--dsw-specific-sidebar-fill',
+    '--dsw-specific-bubble',
+    '--dsw-alias-markdown-code-block',
+  ]
   for (const id of THEME_IDS) {
     const tokens = mount({ boot: id }).tokens()
     for (const mode of ['light', 'dark']) {
-      const ladder = [
-        '--dsw-alias-bg-base',
-        '--dsw-alias-bg-layer-1',
-        '--dsw-alias-bg-layer-2',
-        '--dsw-alias-bg-layer-3',
-      ].map((name) => luminance(tokens[name][mode]))
-      for (let step = 1; step < ladder.length; step += 1) {
-        assert.ok(
-          ladder[step] >= ladder[step - 1] - 0.0005,
-          `${id}/${mode}: surface ${step} is not above surface ${step - 1}`,
-        )
+      const page = cieL(tokens['--dsw-alias-bg-base'][mode])
+      for (const name of content) {
+        const delta = cieL(tokens[name][mode]) - page
+        if (mode === 'light') {
+          assert.ok(delta < 0, `${id}/light: ${name} must sit below the canvas, got ${delta.toFixed(2)}`)
+          assert.ok(delta >= -6.5, `${id}/light: ${name} stepped ${delta.toFixed(2)}, past the 6 L* ceiling`)
+        } else {
+          // The sidebar is the one dark surface that stays below the canvas.
+          if (name === '--dsw-specific-sidebar-fill') assert.ok(delta < 0, `${id}/dark: the sidebar should stay below`)
+          else assert.ok(delta > 0, `${id}/dark: ${name} must sit above the canvas, got ${delta.toFixed(2)}`)
+        }
       }
     }
   }
 })
 
-test('the composer separates from the page without going cold', () => {
-  // The defect this guards: deriving "raised" surfaces by mixing the canvas
-  // toward pure white spends the theme's chroma, so the composer and cards land
-  // as cold white patches on a warm page. It must separate from the canvas, and
-  // when the canvas carries colour the composer has to keep that cast.
+test('surfaces keep the canvas hue, and never outrun the warm-gamut ceiling', () => {
+  // Two failures this catches: a surface that mixes toward white spends the
+  // canvas chroma and turns cold; and a warm colour pushed past L* 98.5 is white
+  // by force of the sRGB gamut no matter what was intended.
+  const surfaces = [
+    '--dsw-alias-bg-layer-1',
+    '--dsw-alias-bg-layer-2',
+    '--dsw-specific-input-major',
+    '--dsw-specific-sidebar-fill',
+    '--dsw-specific-bubble',
+  ]
   for (const id of THEME_IDS) {
     const tokens = mount({ boot: id }).tokens()
     for (const mode of ['light', 'dark']) {
       const canvas = tokens['--dsw-alias-bg-base'][mode]
-      const composer = tokens['--dsw-specific-input-major'][mode]
-      assert.notEqual(composer, canvas, `${id}/${mode}: the composer must separate from the page`)
       const base = chroma(canvas)
-      if (base >= 4) {
-        assert.ok(
-          chroma(composer) >= base * 0.4,
-          `${id}/${mode}: the composer washed out the canvas cast (${chroma(composer)} vs ${base})`,
-        )
+      if (mode === 'light') {
+        assert.ok(cieL(canvas) <= 98.5, `${id}: the canvas itself is past the warm ceiling`)
+      }
+      for (const name of surfaces) {
+        const value = tokens[name][mode]
+        if (mode === 'light') {
+          assert.ok(cieL(value) <= 98.5, `${id}: ${name} is past the warm-gamut ceiling`)
+        }
+        // R6 is about the light ramp; the recipe's dark multipliers drop to 0.70
+        // for the sidebar on purpose, so dark only needs a sanity floor.
+        const floor = mode === 'light' ? 0.85 : 0.6
+        if (base >= 0.004) {
+          assert.ok(
+            chroma(value) >= base * floor,
+            `${id}/${mode}: ${name} lost the canvas cast (${chroma(value).toFixed(4)} vs ${base.toFixed(4)})`,
+          )
+        }
       }
     }
   }
 })
-
 test('the neutral ramp is tinted without moving its lightness', () => {
   // The ramp has to keep each step's *value*, because components re-point a
   // variable per mode (light uses neutral-50, dark uses neutral-850), so a tint
@@ -682,21 +722,23 @@ test('the neutral ramp inherits the theme cast instead of imposing one', () => {
 })
 
 test('every surface step is perceptible against the page it sits on', () => {
-  // The failure this catches: a surface that differs from the canvas by less than
-  // about 1 L* is *invisible*, so a "raised" card or a "sunken" sidebar reads as
-  // the same flat plane as the page — which is how the UI ends up looking
-  // fragmentary. Both modes and all five themes are held to it.
+  // A surface that differs from the canvas by less than about 1 L* is invisible,
+  // so a "raised" card or a "sunken" sidebar reads as the same flat plane.
+  // [token, light floor, dark floor]. A near-black canvas has far less L* room
+  // (Deep Work's dark canvas is L* 3.9), and on macOS the sidebar is composited
+  // over native vibrancy anyway, so its step is carried by hue and chroma.
   const steps = [
-    ['--dsw-alias-bg-layer-3', 2.0],
-    ['--dsw-specific-input-major', 2.0],
-    ['--dsw-specific-sidebar-fill', 2.0],
-    ['--dsw-specific-bubble', 3.0],
+    ['--dsw-alias-bg-layer-3', 2.0, 2.0],
+    ['--dsw-specific-input-major', 2.0, 2.0],
+    ['--dsw-specific-sidebar-fill', 2.0, 1.4],
+    ['--dsw-specific-bubble', 3.0, 3.0],
   ]
   for (const id of THEME_IDS) {
     const tokens = mount({ boot: id }).tokens()
     for (const mode of ['light', 'dark']) {
       const page = cieL(tokens['--dsw-alias-bg-base'][mode])
-      for (const [name, floor] of steps) {
+      for (const [name, lightFloor, darkFloor] of steps) {
+        const floor = mode === 'light' ? lightFloor : darkFloor
         const delta = Math.abs(cieL(tokens[name][mode]) - page)
         assert.ok(delta >= floor, `${id}/${mode}: ${name} is only ${delta.toFixed(2)} L* from the page`)
       }
@@ -712,8 +754,8 @@ test('every surface step is perceptible against the page it sits on', () => {
  * The built-in palette's own text ladder, measured from the 0.2.0-rc.2 sheets.
  * The themes solve for these rather than for an abstract WCAG number: the point
  * is to be no less legible than what DSH already ships, and DSH itself puts
- * `label-tertiary` at 3.71 and `label-caption` at 2.13 in light mode. The
- * solver targets sit above these, so the assertion below is near-exact.
+ * `label-tertiary` at 3.71 and `label-caption` at 2.13 in light mode. The solver
+ * targets sit above these, so the assertion below is near-exact.
  */
 const SHIPPED_LADDER = {
   light: { secondary: 5.8, tertiary: 3.71, caption: 2.13 },
@@ -800,6 +842,26 @@ test('tokens consumed as a background keep their own text legible', () => {
       // held here instead: still well clear of WCAG AA for body text, and the
       // token keeps the accent-tinted character its name promises.
       assert.ok(body >= 6.5, `${id}/${mode}: label on the wash ${body.toFixed(2)} < 6.5`)
+    }
+  }
+})
+
+test('semantic states are re-derived for warm paper, not inherited', () => {
+  // The shipped states are tuned for #ffffff. On the cream canvas they measure
+  // 1.94:1 (warn-primary), 2.52:1 (warn-label), 2.06:1 (success) and 4.06:1
+  // (error) — legibility failures, not style choices. Every theme re-derives them.
+  for (const id of THEME_IDS) {
+    const tokens = mount({ boot: id }).tokens()
+    for (const mode of ['light', 'dark']) {
+      const page = tokens['--dsw-alias-bg-base'][mode]
+      for (const name of TEXT_STATES) {
+        const ratio = contrast(tokens[name][mode], page)
+        assert.ok(ratio >= 4.5, `${id}/${mode}: ${name} is ${ratio.toFixed(2)}:1 on the page`)
+      }
+      for (const name of FILL_STATES) {
+        const ratio = contrast(tokens[name][mode], page)
+        assert.ok(ratio >= 3, `${id}/${mode}: ${name} is ${ratio.toFixed(2)}:1 on the page`)
+      }
     }
   }
 })

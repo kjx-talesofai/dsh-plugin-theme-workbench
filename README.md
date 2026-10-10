@@ -1,13 +1,7 @@
 # dsh-plugin-theme-workbench
 
-Five themes for the DeepSeek Harness Web client, each with a light **and** a dark
-palette, plus the settings row that switches between them.
-
-Built for the case the built-in Appearance row cannot serve: it renders a
-hardcoded Light / Dark / System cube set, so a third-party theme has nowhere to
-appear. This plugin draws its own row and applies its palette through the
-official theme service, which means your light / dark / system preference keeps
-working underneath.
+Five themes for the DeepSeek Harness Web client. Each ships a light and a dark
+palette, and your light / dark / system setting still chooses between them.
 
 ## Install
 
@@ -40,12 +34,24 @@ an existing row is not supported.
 | Deep Work | `#f6f6f5` | `#0c0e11` | Near-monochrome, high contrast, muted bronze |
 | **Cream** (default) | `#f7f3ea` | `#1b1917` | Warm off-white paper, soft clay accent |
 
-Each theme is seven seed colours per mode, from which ~83 structural tokens are
-derived. Text tiers are **solved for a contrast target** rather than faded by a
-fixed fraction, so a warm sepia or sage ink is exactly as legible as the shipped
-near-black one: the palette DSH ships puts `label-tertiary` at 3.71:1 in light
-mode, and every theme here meets or beats that ladder rather than merely
-approaching it.
+Each theme is three seed colours per mode — a canvas, an ink and an accent — from
+which ~99 structural tokens are derived. Nothing else is hand-listed, so a theme
+cannot drift out of its own hue or quietly lose its warmth.
+
+Two rules do most of the work:
+
+- **In light mode, content surfaces step *down* from the canvas.** Cards, the
+  composer, the sidebar, code blocks and bubbles are all slightly darker than the
+  page; only things that genuinely float (menus, popovers) sit above it. That is
+  what paper-like palettes do — Material 3's container ladder steps down 2 tone
+  units, as do Solarized, Everforest, Kanagawa, Catppuccin and Radix — because a
+  raised sheet is *shadowed*, and because at L\* 97–99 there is almost no sRGB room
+  left for chroma, so a lighter warm surface is white by force of the colour space
+  no matter what was intended. Dark mode inverts the direction.
+- **Text tiers are solved for a contrast target**, not faded by a fixed fraction,
+  so a soft sepia or sage ink is exactly as legible as the shipped near-black one.
+  The built-in palette puts `label-tertiary` at 3.71:1 in light mode; every theme
+  here meets or beats that ladder rather than merely approaching it.
 
 ## How it works
 
@@ -66,15 +72,19 @@ approaching it.
   then visibly repaint when the durable value loaded. (DSH's own pre-plugin
   loading screen is still drawn by its bootstrap before any plugin mounts, so that
   screen keeps the built-in canvas colour; it goes as soon as the shell mounts.)
-- **Semantics are inherited, not recoloured.** `state-error-*`, `state-success-*`,
-  `state-warn-*`, the diff colours, the masks and the document-selection blue keep
-  their built-in values, so red still means failure and a selection over a
-  document image still reads as a selection. The one exception is
-  `state-idle-primary`: the plugin never writes it, but it reads the cold-grey
-  ramp, and that ramp is tinted (see below), so its hue follows the theme while
-  its meaning does not. That is the whole reach of the ramp write — the other
-  seven aliases reading the ramp are overridden directly — and a test pins the
-  list so a future alias cannot drift in unnoticed.
+- **Semantic states are re-derived for warm paper, not inherited.** The built-in
+  states are tuned for `#ffffff`, and on a cream canvas they are legibility
+  failures rather than style choices: `state-warn-primary` measures 1.94:1,
+  `state-warn-label` 2.52:1, `state-success-primary` 2.06:1 and
+  `state-error-primary` 4.06:1. Each theme supplies warm-paper equivalents that
+  clear 4.5:1 where the colour is read as text. The diff colours, the masks and
+  the document-selection blue *are* left to the built-in palette, because they
+  either mean green/red by universal convention or are composited over un-themed
+  document pixels. One more token is affected indirectly: the plugin never writes
+  `state-idle-primary`, but it reads the cold-grey ramp, and that ramp is tinted
+  (see below), so its hue follows the theme while its meaning does not. That is
+  the entire reach of the ramp write — the other seven aliases reading the ramp
+  are overridden directly — and a test pins the list.
 - **One dependency, and it is only for the Host half.** The settings schema must
   be a real `schemastery` schema: `dsh-settings` resolves an entry's `Config` with
   `schema !== undefined && "toJSON" in schema`, and then walks it to decide which

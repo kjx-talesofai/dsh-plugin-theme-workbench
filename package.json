@@ -2,7 +2,7 @@
   "name": "dsh-plugin-theme-workbench",
   "version": "0.1.0",
   "type": "module",
-  "description": "A theme manager for the DeepSeek Harness Web client: five built-in themes, each with a light and a dark palette, applied through the official ctx.theme channel and persisted as a real Host preference.",
+  "description": "Five themes for the DeepSeek Harness Web client. Each ships a light and a dark palette.",
   "license": "MIT",
   "author": "Jiaxin Kou <https://hypersampling.com>",
   "repository": {

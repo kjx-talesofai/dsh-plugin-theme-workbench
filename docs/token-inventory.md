@@ -1,6 +1,6 @@
 # Theme Workbench — token inventory (DSH 0.2.0-rc.2 desktop bundle)
 
-Read-only inspection of `/Applications/DeepSeek Harness.app/Contents/Resources/app.asar`
+Read-only inspection of the installed desktop bundle (`app.asar`)
 (11,480 entries, 121,387,457 bytes). Every claim below is quoted from a file actually read out of
 that archive. Inner paths are relative to the archive root and start with `dsh/`.
 
@@ -28,7 +28,7 @@ stylesheets as string literals and registers them in a `STYLES` table:
 `dsh/node_modules/@deepseek-ai/dsh-client-ui-theme/lib/client.js`
 
 ```js
-//#region \0dsh-inline-css:/Users/hrsonion/Developer/harness/dsh-macos-arm64/packages/client/ui-theme/src/styles/design-platform.css.mjs
+//#region \0dsh-inline-css:<upstream build root>/packages/client/ui-theme/src/styles/design-platform.css.mjs
 var design_platform_css_default = "body{--dsw-static-amber-100:#fef5e7;--dsw-static-amber-400:#f7ad31;…";
 //#endregion
 …
@@ -795,7 +795,7 @@ html[data-platform=darwin] body[data-ds-dark-theme]{--dsw-specific-menu:#303136f
 ## Appendix D — method / reproduction
 
 All facts above were derived with a read-only ASAR reader against
-`/Applications/DeepSeek Harness.app/Contents/Resources/app.asar`:
+the installed desktop bundle (`app.asar`):
 
 * `list <archive> <regex>` enumerates entries; `cat` streams one entry; `grep` is line-based with a
   40-hit default cap (`LIMIT=<n>` to raise it) and skips files > 4 MiB and files with a NUL byte in

@@ -11,17 +11,24 @@ working underneath.
 
 ## Install
 
-```sh
-dsh plugin add dsh-plugin-theme-workbench
-```
-
-Or from a checkout:
+Not published on npm, so install it from the repository:
 
 ```sh
-dsh plugin add ./dsh-plugin-theme-workbench
+dsh plugin --profile desktop add github:kjx-talesofai/dsh-plugin-theme-workbench#v0.1.0
 ```
 
-Then restart, and open **Settings → General → Theme**.
+A local checkout works too, but the path must be **absolute** — a relative path is
+refused:
+
+```sh
+dsh plugin --profile desktop add /absolute/path/to/dsh-plugin-theme-workbench
+```
+
+Restart to load the Host half, then open **Settings → General → Theme**. Changing
+the theme afterwards needs no restart and no refresh.
+
+To upgrade, uninstall first and then install the new revision; reinstalling over
+an existing row is not supported.
 
 ## The themes
 
@@ -34,10 +41,11 @@ Then restart, and open **Settings → General → Theme**.
 | **Cream** (default) | `#f7f3ea` | `#1b1917` | Warm off-white paper, soft clay accent |
 
 Each theme is six seed colours per mode, from which ~83 structural tokens are
-derived. Text tiers are **solved for a contrast target**, not faded by a fixed
-fraction, so a warm sepia or sage ink is exactly as legible as the shipped
-near-black one — the palette that ships with DSH puts `label-tertiary` at 3.71:1
-in light mode, and every theme here meets or beats its own ladder.
+derived. Text tiers are **solved for a contrast target** rather than faded by a
+fixed fraction, so a warm sepia or sage ink is exactly as legible as the shipped
+near-black one: the palette DSH ships puts `label-tertiary` at 3.71:1 in light
+mode, and every theme here meets or beats that ladder rather than merely
+approaching it.
 
 ## How it works
 
@@ -98,7 +106,8 @@ npm test
 
 `docs/token-inventory.md` is a reference for the DSH 0.2.0-rc.2 token surface:
 where the light/dark palettes actually live, how a snapshot reaches the DOM, all
-107 `--dsw-alias-*` names with both mode values, and the traps a theme author
+101 of the 107 `--dsw-alias-*` names carry both mode values, and the traps a theme
+author
 hits (`brand-primary` is *not* the accent; `menu-icon` and `turn-trigger-bg`
 derive from different sources per mode; ten aliases are consumed but declared
 nowhere). It is dev-only and not shipped.

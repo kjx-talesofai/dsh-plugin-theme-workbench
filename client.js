@@ -168,6 +168,35 @@ window.__ModuleLoader__.load({
     }
 
     /**
+     * The strongest tint of `color` over `base` that still leaves `color`
+     * legible on top of it.
+     *
+     * Needed because a wash token and the accent drawn on it share a hue, so the
+     * more of the accent the wash carries the less the accent stands out. Guessing
+     * a fraction gets this wrong in both directions: too little and the wash is
+     * invisible, too much and the label on it collapses. Contrast falls
+     * monotonically as the tint grows, so the largest usable tint is a solve.
+     *
+     * @param base - the surface the tint is laid over (white in light mode, the
+     *   canvas in dark mode — matching how the shipped palette tints each).
+     * @param color - the accent drawn on top of the wash.
+     * @param target - the contrast ratio that accent needs.
+     * @param cap - the most tint to allow, so the result stays a wash.
+     * @returns the tinted colour, or `base` when no tint at all meets the target.
+     */
+    function tint(base, color, target, cap = 0.5) {
+      if (contrast(color, mix(base, color, cap)) >= target) return mix(base, color, cap)
+      let low = 0
+      let high = cap
+      for (let step = 0; step < 24; step += 1) {
+        const mid = (low + high) / 2
+        if (contrast(color, mix(base, color, mid)) >= target) low = mid
+        else high = mid
+      }
+      return mix(base, color, low)
+    }
+
+    /**
      * How far to travel from `base` toward `toward` before reaching `target`
      * contrast.
      *
@@ -286,13 +315,16 @@ window.__ModuleLoader__.load({
       const line = (weight) => alpha(ink, weight)
 
       // Text tiers are solved against the built-in palette's own contrast ladder
-      // (light 5.8 / 3.71 / 2.13, dark 12.11 / 8.54 / 4.92) rather than faded by
-      // fraction, so a soft warm ink reads as well as the shipped near-black one.
+      // (measured from the 0.2.0-rc.2 sheets: light 5.8 / 3.71 / 2.13, dark
+      // 12.11 / 8.54 / 4.92) rather than faded by fraction, so a soft warm ink
+      // reads as well as the shipped near-black one. The targets sit a hair above
+      // the shipped values so rounding can never land below them: the point is to
+      // be *no less* legible than what DSH already ships, not merely close.
       // `label-primary` is the ink itself; only the tiers under it are solved.
       const labelPrimary = ink
-      const labelSecondary = reach(canvas, ink, dark ? 12 : 5.7)
-      const labelTertiary = reach(canvas, ink, dark ? 8.4 : 3.6)
-      const labelCaption = reach(canvas, ink, dark ? 4.8 : 2.1)
+      const labelSecondary = reach(canvas, ink, dark ? 12.2 : 5.85)
+      const labelTertiary = reach(canvas, ink, dark ? 8.6 : 3.76)
+      const labelCaption = reach(canvas, ink, dark ? 4.97 : 2.18)
       // Dimmed and disabled ink is deliberately faint, so it keeps the shipped
       // fractions instead of a contrast floor.
       const labelDimmed = mix(canvas, ink, dark ? 0.202 : 0.125)
@@ -310,7 +342,11 @@ window.__ModuleLoader__.load({
       // colour" inverts the whole UI, so it stays monochrome here and the accent
       // goes to the separately named token below.
       const brandPrimary = mix(canvas, ink, 0.95)
-      const accentHover = dark ? mix(accent, WHITE, 0.15) : mix(accent, BLACK, 0.12)
+      // Hover moves *away* from the fill: the shipped light pair goes from
+      // deepseek-500 to the lighter deepseek-400, and the dark pair from
+      // deepseek-400 to the darker deepseek-500. Getting this backwards makes
+      // hover read as a pressed state.
+      const accentHover = dark ? mix(accent, BLACK, 0.15) : mix(accent, WHITE, 0.12)
       const menuSurface = alpha(up(dark ? 0.12 : 0.6), dark ? 0.45 : 0.58)
       const tooltipBg = dark ? up(0.16) : mix(canvas, ink, 0.84)
 
@@ -320,7 +356,10 @@ window.__ModuleLoader__.load({
         '--dsw-alias-bg-layer-1': up(dark ? 0.035 : 0.55),
         '--dsw-alias-bg-layer-2': up(dark ? 0.07 : 0.72),
         '--dsw-alias-bg-layer-3': up(dark ? 0.105 : 0.85),
-        '--dsw-alias-bg-overlay': up(dark ? 0.075 : 0.62),
+        // Overlays sit *below* the canvas in light mode (the shipped value is
+        // bluish-150, a shade darker than white) and clearly above it in dark
+        // mode, so this is one of the tokens whose direction flips per mode.
+        '--dsw-alias-bg-overlay': dark ? mix(canvas, WHITE, 0.28) : down(0.05),
         '--dsw-alias-bg-module-platform': dark ? up(0.12) : down(0.035),
         '--dsw-alias-bg-multi-select': dark ? up(0.09) : down(0.04),
         '--dsw-alias-bg-document-preview': dark ? canvas : down(0.025),
@@ -342,7 +381,7 @@ window.__ModuleLoader__.load({
         '--dsw-alias-label-caption': labelCaption,
         '--dsw-alias-label-dimmed': labelDimmed,
         '--dsw-alias-label-primary-dimmed': text(0.96),
-        '--dsw-alias-label-primary-bluish': mix(ink, accent, 0.25),
+        '--dsw-alias-label-primary-bluish': mix(ink, accent, 0.15),
         '--dsw-alias-label-primary-foreground': dark ? mix(canvas, BLACK, 0.9) : WHITE,
         '--dsw-alias-label-primary-inverted': dark ? up(0.16) : WHITE,
         '--dsw-alias-label-document-preview': labelSecondary,
@@ -362,7 +401,15 @@ window.__ModuleLoader__.load({
         // The business state is what `--dsw-focus-ring-color` falls back to, so
         // overriding it is what makes the focus ring follow the theme.
         '--dsw-alias-state-business-primary': accent,
-        '--dsw-alias-state-business-tertiary': dark ? mix(accent, BLACK, 0.45) : mix(accent, canvas, 0.14),
+        // A *tint* of the accent, not the accent: the shipped pair is
+        // deepseek-100 (tinted over white) in light and deepseek-800 (tinted over
+        // the canvas) in dark, and this token is consumed as the background UNDER
+        // accent text (`ui-plan`'s chip) and under `label-primary-bluish`
+        // (`ui-conversation`). Letting the accent itself in collapses that text to
+        // ~1.3:1, so the tint is solved for the accent's own legibility.
+        '--dsw-alias-state-business-tertiary': dark
+          ? tint(canvas, accent, 4.5)
+          : tint(WHITE, accent, 3.7),
 
         // Buttons.
         '--dsw-alias-button-primary-fill': brandPrimary,
@@ -371,7 +418,7 @@ window.__ModuleLoader__.load({
         '--dsw-alias-button-contrast-fill': mix(canvas, ink, dark ? 0.95 : 0.72),
         '--dsw-alias-button-elevated-fill': up(dark ? 0.06 : 0.8),
         '--dsw-alias-button-floating-fill': up(dark ? 0.08 : 0.75),
-        '--dsw-alias-button-floating-hover': dark ? up(0.12) : line(0.05),
+        '--dsw-alias-button-floating-hover': dark ? up(0.12) : mix(canvas, ink, 0.055),
         '--dsw-alias-button-ghost-active-fill': mix(canvas, ink, dark ? 0.12 : 0.06),
         '--dsw-alias-button-ghost-active-hover': mix(canvas, ink, dark ? 0.16 : 0.09),
         '--dsw-alias-button-ghost-active-border': mix(ink, canvas, dark ? 0.45 : 0.55),
@@ -502,12 +549,12 @@ window.__ModuleLoader__.load({
 .dtw-swatch{display:flex;flex-direction:column;align-items:center;gap:5px;padding:6px 7px;border:1px solid transparent;border-radius:var(--dsw-radius-md,12px);background:transparent;font:inherit;cursor:pointer}
 .dtw-swatch:hover{background:var(--dsw-alias-interactive-bg-hover)}
 .dtw-swatch:focus-visible{outline:2px solid var(--dsw-alias-state-business-primary);outline-offset:1px}
-.dtw-swatch[aria-checked="true"]{border-color:var(--dsw-alias-state-business-primary);background:var(--dsw-alias-interactive-bg-hover-solid)}
+.dtw-swatch[aria-pressed="true"]{border-color:var(--dsw-alias-state-business-primary);background:var(--dsw-alias-interactive-bg-hover-solid)}
 .dtw-chip{position:relative;display:flex;width:34px;height:22px;border-radius:6px;overflow:hidden;box-shadow:inset 0 0 0 .5px var(--dsw-alias-border-l2)}
 .dtw-half{flex:1 1 50%}
 .dtw-dot{position:absolute;left:50%;top:50%;width:8px;height:8px;margin:-4px 0 0 -4px;border-radius:50%;box-shadow:0 0 0 1px rgba(0,0,0,.2)}
 .dtw-label{color:var(--dsw-alias-label-secondary);font-size:11px;line-height:16px;white-space:nowrap}
-.dtw-swatch[aria-checked="true"] .dtw-label{color:var(--dsw-alias-label-primary)}
+.dtw-swatch[aria-pressed="true"] .dtw-label{color:var(--dsw-alias-label-primary)}
 `
 
     // ---------------------------------------------------------------------
@@ -540,15 +587,18 @@ window.__ModuleLoader__.load({
         ),
         h(
           'div',
-          { className: 'dtw-swatches', role: 'radiogroup', 'aria-label': t('row.title') },
+          // A labelled group of toggle buttons, not a radiogroup: `role="radio"`
+          // would promise a roving tabindex and arrow-key navigation that this row
+          // does not implement, so `aria-pressed` on plain buttons is the honest
+          // description of what a keyboard user actually gets.
+          { className: 'dtw-swatches', role: 'group', 'aria-label': t('row.title') },
           options.map((option) =>
             h(
               'button',
               {
                 key: option.id,
                 type: 'button',
-                role: 'radio',
-                'aria-checked': themeId === option.id,
+                'aria-pressed': themeId === option.id,
                 title: t(`hint.${option.id}`),
                 className: 'dtw-swatch',
                 onClick: () => face.select(option.id),
@@ -584,10 +634,15 @@ window.__ModuleLoader__.load({
 
       ctx.effect(
         () => {
+          // The shipped theme package guards its own stylesheet mounting the same
+          // way: a client tree can be booted without a document (DSH's node e2e
+          // does), and the palette still has to work there. Only the row's own
+          // styling is skipped.
+          if (typeof document === 'undefined') return undefined
           const tag = document.createElement('style')
           tag.dataset.plugin = NS
           tag.textContent = CSS
-          document.head.appendChild(tag)
+          document.head?.appendChild(tag)
           return () => {
             tag.remove()
           }

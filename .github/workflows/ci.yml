@@ -19,10 +19,12 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
 
-      # No install step by design: the plugin has zero dependencies, and its
-      # browser half ships as hand-written source rather than a build artifact,
-      # so the suite runs on a bare checkout. `cache: npm` is deliberately absent
-      # for the same reason — there is no lockfile to key a cache on.
+      # No install step by design. The suite evaluates the browser half as a
+      # script and reads the Host half as text, so it never imports the one
+      # package this plugin depends on (`@deepseek-ai/schemastery`, needed only to
+      # declare the settings schema) and a bare checkout is enough. `cache: npm` is
+      # deliberately absent for the same reason — there is no lockfile to key a
+      # cache on, because `npm install` is not part of this job.
       - run: npm test
 
       - name: The tarball ships only runtime files

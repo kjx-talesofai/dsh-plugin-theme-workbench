@@ -193,13 +193,14 @@ function createReact() {
  * @returns the module it registered, the id it claimed, and the sandbox so a
  *   caller can seed a global before `apply` runs.
  */
-function loadBundle() {
+function loadBundle(options = {}) {
   const required = []
-  const sandbox = {
-    document: {
+  const sandbox = {}
+  if (options.document !== false) {
+    sandbox.document = {
       createElement: () => ({ dataset: {}, textContent: '', remove() {} }),
       head: { appendChild() {} },
-    },
+    }
   }
   sandbox.window = {
     __ModuleLoader__: {
@@ -521,7 +522,8 @@ test('dark raised surfaces are lighter than the canvas and light ones are too', 
  * The built-in palette's own text ladder, measured from the 0.2.0-rc.2 sheets.
  * The themes solve for these rather than for an abstract WCAG number: the point
  * is to be no less legible than what DSH already ships, and DSH itself puts
- * `label-tertiary` at 3.71 and `label-caption` at 2.13 in light mode.
+ * `label-tertiary` at 3.71 and `label-caption` at 2.13 in light mode. The
+ * solver targets sit above these, so the assertion below is near-exact.
  */
 const SHIPPED_LADDER = {
   light: { secondary: 5.8, tertiary: 3.71, caption: 2.13 },
@@ -551,7 +553,7 @@ test('the lower text tiers are no less legible than the built-in palette', () =>
         const ratio = contrast(tokens[name][mode], tokens['--dsw-alias-bg-base'][mode])
         const shipped = SHIPPED_LADDER[mode][tier]
         assert.ok(
-          ratio >= shipped - 0.15,
+          ratio >= shipped - 0.02,
           `${id}/${mode}: ${name} contrast ${ratio.toFixed(2)} is below the built-in ${shipped}`,
         )
       }
@@ -585,6 +587,44 @@ test('chip text is legible on its own surface', () => {
     for (const mode of ['light', 'dark']) {
       const toast = contrast(tokens['--dsw-alias-toast-label'][mode], tokens['--dsw-alias-toast-bg'][mode])
       assert.ok(toast >= 4.5, `${id}/${mode}: toast contrast ${toast.toFixed(2)}`)
+    }
+  }
+})
+
+test('tokens consumed as a background keep their own text legible', () => {
+  // The gap this closes: measuring every tier only against `bg-base` cannot see a
+  // wash token that is consumed *under* accent text. `ui-plan` draws its chip as
+  // `background: state-business-tertiary; color: state-business-primary`, and
+  // `ui-conversation` draws `label-primary-bluish` over the same wash.
+  for (const id of THEME_IDS) {
+    const tokens = mount({ boot: id }).tokens()
+    for (const mode of ['light', 'dark']) {
+      const wash = tokens['--dsw-alias-state-business-tertiary'][mode]
+      const chip = contrast(tokens['--dsw-alias-state-business-primary'][mode], wash)
+      const floor = mode === 'light' ? 3.6 : 4.39
+      assert.ok(chip >= floor - 0.02, `${id}/${mode}: accent on its wash ${chip.toFixed(2)} < ${floor}`)
+
+      const body = contrast(tokens['--dsw-alias-label-primary-bluish'][mode], wash)
+      // The built-in palette reaches 10.53:1 in light mode because its accent is
+      // a far darker, cooler blue than any warm accent can be. 6.5 is the floor
+      // held here instead: still well clear of WCAG AA for body text, and the
+      // token keeps the accent-tinted character its name promises.
+      assert.ok(body >= 6.5, `${id}/${mode}: label on the wash ${body.toFixed(2)} < 6.5`)
+    }
+  }
+})
+
+test('an accent hover moves away from the fill, not into it', () => {
+  for (const id of THEME_IDS) {
+    const tokens = mount({ boot: id }).tokens()
+    for (const mode of ['light', 'dark']) {
+      const fill = luminance(tokens['--dsw-alias-button-info-fill'][mode])
+      const hover = luminance(tokens['--dsw-alias-button-info-hover'][mode])
+      // The shipped pair goes deepseek-500 -> 400 in light and 400 -> 500 in
+      // dark, i.e. hover always travels away from the fill. Inverting it makes a
+      // hover read as a pressed state.
+      if (mode === 'light') assert.ok(hover > fill, `${id}: light hover must lighten`)
+      else assert.ok(hover < fill, `${id}: dark hover must darken`)
     }
   }
 })
@@ -749,10 +789,41 @@ test('teardown disposes the override layer', () => {
   assert.equal(layers[0].disposed, true)
 })
 
-test('the plugin still mounts and paints when no settings scope exists', () => {
+test('the defensive path: still mounts and paints without a settings scope', () => {
+  // `configForms` is a hard dependency in the shipped composition, so this
+  // state cannot occur there; the guards exist so a future composition that
+  // drops the settings domain costs persistence rather than the whole plugin.
   const { registrations, tokens } = mount()
   assert.equal(registrations.length, 1)
   assert.ok(Object.keys(tokens()).length >= 80)
+})
+
+test('a documentless client tree still gets the palette', () => {
+  // DSH's node e2e boots the client tree without a document, which is why the
+  // shipped theme package guards its own stylesheet mounting. Only the row's
+  // styling may be skipped; the palette must still apply.
+  const loaded = loadBundle({ document: false })
+  assert.equal(typeof loaded.sandbox.document, 'undefined')
+  let layer
+  loaded.module.apply({
+    effect: (fn) => {
+      const cleanup = fn()
+      return () => {
+        if (typeof cleanup === 'function') cleanup()
+      }
+    },
+    locale: { register: () => () => {} },
+    theme: {
+      overrideTokens: (source, tokens) => {
+        layer = { source, tokens }
+        return () => {}
+      },
+    },
+    slots: { inject: (_key, cb) => cb(), register: () => () => {} },
+  })
+  assert.ok(layer, 'the palette must still be applied')
+  assert.equal(layer.source, NS)
+  assert.ok(Object.keys(layer.tokens).length >= 80)
 })
 
 // ---------------------------------------------------------------------------
@@ -768,12 +839,14 @@ test('the row renders one radio per theme, marking the active one', () => {
 
   const buttons = collect(tree, 'button')
   assert.equal(buttons.length, 5)
-  assert.deepEqual(buttons.map((button) => button.props['aria-checked']), [false, false, true, false, false])
-  assert.deepEqual(buttons.map((button) => button.props.role), ['radio', 'radio', 'radio', 'radio', 'radio'])
+  assert.deepEqual(buttons.map((button) => button.props['aria-pressed']), [false, false, true, false, false])
+  // Plain toggle buttons, deliberately not `role="radio"`: a radiogroup would
+  // promise roving tabindex and arrow keys this row does not implement.
+  assert.deepEqual(buttons.map((button) => button.props.role), Array(5).fill(undefined))
   assert.deepEqual(buttons.map((button) => button.props.type), ['button', 'button', 'button', 'button', 'button'])
-  const group = collect(tree, 'div').find((node) => node.props.role === 'radiogroup')
-  assert.ok(group, 'the swatch strip must be a radiogroup')
-  assert.deepEqual([...collect(tree, 'div')].filter((node) => node.props.role === 'radiogroup').length, 1)
+  const group = collect(tree, 'div').find((node) => node.props.role === 'group')
+  assert.ok(group, 'the swatch strip must be a labelled group')
+  assert.equal(typeof group.props['aria-label'], 'string')
 
   // Clicking a swatch drives the same select path the store uses.
   buttons[0].props.onClick()

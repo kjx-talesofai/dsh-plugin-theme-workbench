@@ -36,7 +36,8 @@
     "LICENSE"
   ],
   "engines": {
-    "node": ">=22"
+    "node": ">=22",
+    "dsh": ">=0.2.0-rc.1 <0.3.0-0"
   },
   "dependencies": {
     "@deepseek-ai/schemastery": "~3.18.4"
@@ -46,9 +47,6 @@
   },
   "dsh": {
     "manifestVersion": 1,
-    "engines": {
-      "dsh": ">=0.2.0-rc.1 <0.3.0-0"
-    },
     "bundle": {
       "patch": "./cordis.patch.yml"
     },

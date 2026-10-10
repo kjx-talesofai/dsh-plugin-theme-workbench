@@ -28,7 +28,7 @@ Five themes for the **DeepSeek Harness** Web client. Each ships a **light and a 
 
 | 填入 | 形式 |
 |---|---|
-| GitHub | `github:kjx-talesofai/dsh-plugin-theme-workbench#v0.1.2`（当前可用） |
+| GitHub | `github:kjx-talesofai/dsh-plugin-theme-workbench#v0.1.3`（当前可用） |
 | 本地目录 | 绝对路径，例如 `/path/to/dsh-plugin-theme-workbench` |
 
 装完**重启桌面端**（host 半边只在启动时加载）。之后换主题**不用刷新、也不用再重启**。
@@ -69,14 +69,14 @@ This plugin closes both gaps and nothing else:
 | Modern Classic | `#f7f8fa` | `#15171b` | Cool paper, near-black ink, deep blue accent |
 | Deep Work | `#f6f6f5` | `#0c0e11` | Near-monochrome, high contrast, muted bronze |
 
-Each theme is **three seed colours per mode** — a canvas, an ink and an accent — from which all **108 tokens** are derived. Nothing else is hand-listed, so a theme cannot drift out of its own hue or quietly lose its warmth.
+Each theme is **three seed colours per mode** — a canvas, an ink and an accent — from which all **117 tokens** are derived. Nothing else is hand-listed, so a theme cannot drift out of its own hue or quietly lose its warmth.
 
 ## Install
 
 Use DSH's plugin install dialog (**Add plugin**) with either of these, then restart the desktop app:
 
 ```text
-github:kjx-talesofai/dsh-plugin-theme-workbench#v0.1.2   # GitHub, pinned to this release
+github:kjx-talesofai/dsh-plugin-theme-workbench#v0.1.3   # GitHub, pinned to this release
 /absolute/path/to/dsh-plugin-theme-workbench             # local checkout (dev)
 ```
 
@@ -85,7 +85,7 @@ github:kjx-talesofai/dsh-plugin-theme-workbench#v0.1.2   # GitHub, pinned to thi
 CLI equivalent:
 
 ```sh
-dsh plugin --profile desktop add github:kjx-talesofai/dsh-plugin-theme-workbench#v0.1.2
+dsh plugin --profile desktop add github:kjx-talesofai/dsh-plugin-theme-workbench#v0.1.3
 ```
 
 To upgrade, uninstall first and then install the new revision — reinstalling over an existing row is not supported.
@@ -148,7 +148,9 @@ The palette is derived, not tabulated, and the rules are the point — they were
 
 The set is enumerated from the archive rather than guessed: [`tools/audit-contrast.mjs`](tools/audit-contrast.mjs) mines every rule in the shipped bundle that paints a colour on a background and re-measures it under all ten palettes. It is how the badge was found, and it is what `npm test` cannot do on its own — a test can only check a pairing someone already knew about.
 
-Everything above is measured by the test suite: the direction of every step, the 6 L\* ceiling inside a light palette, the L\* 98.5 warm-gamut ceiling, chroma retention across the ramp, the text ladder, and every contrast floor.
+**Decorative art is derived too, not inherited.** The onboarding flow's accent and its three gradient ramps are declared once upstream with no dark twin, so they keep their violet/blue/cyan on warm paper in both modes. Here the ramps become three rotations of the theme's *own* accent — a warmer and a cooler neighbour, at the shipped stop geometry — which keeps the three cards tellable apart without importing two colours the theme does not own. The frosted card they sit on is re-sampled from the canvas, and the toolbar veils come from the ink rather than from the shipped mid-grey that is a cool pill on warm paper and near-invisible on a dark one.
+
+Everything above is measured by the test suite: the direction of every step, the 6 L\* ceiling inside a light palette, the L\* 98.5 warm-gamut ceiling, chroma retention across the ramp, the text ladder, the hue family of the decorative ramps, and every contrast floor.
 
 ## What it does not reach
 
@@ -156,7 +158,8 @@ Everything above is measured by the test suite: the direction of every step, the
 - **Shadows are fixed.** `--dsw-elevation-stroke/-panel/-prominent/-soft` are re-declared on `body, body *`, so every element shadows a body-level override and the recipes' geometry and alpha apply unchanged. Their *hairline colour* does follow, because that part is body-level.
 - **A few macOS-only literals**, such as the new-session button's `#ffffff8c`, which no token feeds.
 - **The spreadsheet preview stays white.** Its stylesheet is a third-party sheet (fortune-sheet, in `client.excel.js`) carrying 233 colour declarations and not one dark-mode selector, so opening a `.xlsx` in the right-hand panel gives you a white application inside a dark theme. No custom property reaches it. The PDF preview and the terminal do follow the theme; the terminal's IME overlay does not.
-- **The onboarding flow keeps the shipped cool palette.** Its card fill, secondary fill, accent and three gradient stop-sets are tokens, so this is reachable — the plugin just does not cover them, and the accent ring keeps its blue-violet on warm paper. It is the one sizeable surface left out on purpose rather than by force.
+- **Code and file diffs keep the shipped green and red.** Those hues carry meaning (added / removed), the shipped values are already mode-aware, and the audit measured no readability or adaptation defect in them. They stay.
+- **`--dsw-alias-button-tool-bar-fill-invisible` is written but unread.** The shipped sheet declares it and nothing consumes it in 0.2.0-rc.2. It is covered anyway so the toolbar family is not half-themed if a consumer appears.
 - **Fonts, radii and syntax highlighting.** A `:root` custom property still inherits into `body`, so these are technically reachable from here; this plugin deliberately does not touch them.
 
 ## Compatibility
@@ -181,7 +184,7 @@ Not tested: Windows, Linux, and DSH versions other than 0.2.0-rc.2. Run `npm tes
 > The `npm` below is just the CLI bundled with Node — no account, nothing published.
 
 ```sh
-npm test             # 46 tests; no install step needed, run it on a bare checkout
+npm test             # 49 tests; no install step needed, run it on a bare checkout
 npm pack --dry-run   # what actually ships (9 files)
 ```
 

@@ -607,6 +607,47 @@ window.__ModuleLoader__.load({
       // floor can round a hair under it.
       const WASH_TARGET = 4.6
 
+      // The onboarding flow is the one surface the shipped palette paints from a
+      // fixed cool family, and it is reachable: `--dsw-alias-onboarding-accent`
+      // and the three gradient ramps below (`body`-level, from ui-theme's
+      // `onboarding.css`) have exactly ONE declaration each, so they keep their
+      // blue-violet on warm paper in both modes.
+      //
+      // Upstream the ramps are three hues (violet / blue / cyan) because they are
+      // three selectable cards. This palette owns one accent, so they become three
+      // rotations of that accent's own hue — a warmer and a cooler neighbour —
+      // which keeps the three cards distinguishable without importing two colours
+      // the theme does not have.
+      const RAMP_STOPS = {
+        violet: [-20, ['33.102', '50.954', '85.326']],
+        blue: [0, ['18.75', '51.78', '86.252']],
+        cyan: [20, ['21.154', '50.954', '85.326']],
+      }
+
+      /**
+       * One stop of a decorative onboarding ramp: the accent's hue, rotated by
+       * `shift` degrees, sampled at an OKLab lightness.
+       *
+       * The chroma is left at the accent's own and `oklabToHex` scales it into
+       * gamut, so the pale upper stop is pale *by construction* — the same reason
+       * the surface ramp re-samples instead of mixing toward white.
+       *
+       * @param shift - hue rotation in degrees; 0 is the accent itself.
+       * @param lightness - OKLab lightness, 0..1.
+       */
+      const rampStop = (shift, lightness) => {
+        const base = toOklab(accent)
+        const hue = Math.atan2(base.b, base.a) + (shift * Math.PI) / 180
+        const chroma = Math.hypot(base.a, base.b)
+        return oklabToHex({ lightness, a: Math.cos(hue) * chroma, b: Math.sin(hue) * chroma })
+      }
+
+      /** A ramp in the shipped shape: deep, mid, pale, and back to deep. */
+      const ramp = (shift, stops) => {
+        const deep = rampStop(shift, 0.42)
+        return `${deep} ${stops[0]}%, ${rampStop(shift, 0.65)} ${stops[1]}%, ${rampStop(shift, 0.86)} ${stops[2]}%, ${deep}`
+      }
+
       return {
         // Surfaces.
         '--dsw-alias-bg-base': canvas,
@@ -710,6 +751,16 @@ window.__ModuleLoader__.load({
         '--dsw-alias-button-ghost-active-border': mix(ink, canvas, dark ? 0.45 : 0.55),
         '--dsw-alias-button-info-fill': accent,
         '--dsw-alias-button-info-hover': accentHover,
+        // Shipped as one mid-grey veil in *both* modes (`#54555780`, `#54555799`,
+        // `#1f1f1f5c`), which is a cool pill on warm paper and close to invisible
+        // on the dark canvas. Derived from the theme's own ink instead, so it
+        // follows the mode the way every other veil in this palette does.
+        '--dsw-alias-button-tool-bar-fill': alpha(text(0.62), 0.5),
+        '--dsw-alias-button-tool-bar-hover': alpha(text(0.62), 0.6),
+        // Declared upstream, consumed by nothing in 0.2.0-rc.2 (`audit-contrast.mjs`
+        // lists it under written-but-never-read). Covered anyway so the family is
+        // not half-themed the day something does consume it.
+        '--dsw-alias-button-tool-bar-fill-invisible': alpha(text(0.85), 0.36),
 
         // Interactive veils.
         '--dsw-alias-interactive-bg-hover': interactiveHover,
@@ -752,6 +803,17 @@ window.__ModuleLoader__.load({
         '--dsw-alias-switch-thumb': dark ? mix(canvas, ink, 0.55) : overlay,
 
         // View-specific surfaces.
+        // Onboarding: the accent, its three decorative ramps, and the frosted card
+        // the flow is built on. The card veil is re-sampled from the canvas rather
+        // than mixed toward white, and stays translucent because the sheet sits
+        // over the gradient art with a 32 px backdrop blur.
+        '--dsw-alias-onboarding-accent': accent,
+        '--dsw-gradient-onboarding-violet-stops': ramp(...RAMP_STOPS.violet),
+        '--dsw-gradient-onboarding-blue-stops': ramp(...RAMP_STOPS.blue),
+        '--dsw-gradient-onboarding-cyan-stops': ramp(...RAMP_STOPS.cyan),
+        '--dsw-alias-onboarding-card-fill': alpha(dark ? resample(4.5, 0.95) : resample(2.4, 1.15), 0.8),
+        '--dsw-alias-onboarding-secondary-fill': dark ? resample(7, 0.9) : resample(2.4, 1.15),
+
         '--dsw-specific-sidebar-fill': sidebar,
         '--dsw-specific-sidebar-nav-item-hover': mix(sidebar, ink, dark ? 0.1 : 0.045),
         '--dsw-specific-sidebar-nav-item-active': mix(sidebar, ink, dark ? 0.14 : 0.07),

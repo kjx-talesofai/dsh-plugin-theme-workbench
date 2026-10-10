@@ -105,8 +105,9 @@ carriers read, **25 are asked to be both a fill and an ink colour**, and this pl
 writes 22 of them. (Counted across every declaration, including reads inside other
 custom-property definitions — counting only fill/ink properties calls 29 written
 names dead instead of the true 18, because that is where the neutral ramp is
-consumed.) Of the 108 names this palette writes, 18 are never read by anything, 4
-of them ramp steps. That is the structure every defect here has had — one token, two jobs,
+consumed.) Of the 117 names this palette writes, 19 are never read by anything — 4
+ramp steps, and `--dsw-alias-button-tool-bar-fill-invisible`, which is covered on
+purpose so its family is not half-themed if a consumer ever appears. That is the structure every defect here has had — one token, two jobs,
 and in dark mode the two jobs want opposite luminance:
 
 | token | as a fill | as an ink colour |
@@ -119,6 +120,32 @@ Both of the findings above are rows in that table, and the `v0.1.1` badge fix wa
 the third. The census cannot say whether a given pair is satisfiable — sections A
 to C do that — but it names the risk set, which is what a reader needs to know
 where to look next.
+
+## Coverage added
+
+**The onboarding flow** was the one sizeable surface left on the shipped cool
+palette, and the only row of this audit that was a coverage *decision* rather than
+an impossibility: `--dsw-alias-onboarding-card-fill`, `-secondary-fill`, `-accent`
+and `--dsw-gradient-onboarding-{violet,blue,cyan}-stops` are `body`-level tokens.
+The two fills had dark twins but cool ones (`#2c2c2e` 80 %, `#48494c`); the accent
+and all three gradient stop-sets had exactly **one** declaration each, so they kept
+their violet/blue/cyan on warm paper in both modes.
+
+They are now derived: the accent is the theme's own; the ramps are three rotations
+of that accent's hue (−20° / 0° / +20°) sampled at three OKLab lightnesses and
+gamut-mapped, at each token's shipped stop geometry; the card veil is re-sampled
+from the canvas and stays translucent. Tested by hue family, stop shape, translucency
+and mode-awareness, with mutations confirming each assertion fires.
+
+**The toolbar veils** (`-fill`, `-hover`, `-fill-invisible`) were a single mid-grey
+in *both* modes upstream — a cool pill on warm paper, and close to invisible on a
+dark canvas. They are now the theme's ink mixed toward its canvas, so they follow
+the mode like every other veil in the palette.
+
+**Deliberately not added:** `--dsw-alias-code-diff-*` and
+`--dsw-alias-file-diff-*-bg`. Those hues mean added/removed, the shipped values are
+already mode-aware, and the audit measured no readability or adaptation defect in
+them; re-hueing a semantic green for warmth would trade meaning for decoration.
 
 ## Fixed as a result
 
@@ -148,7 +175,6 @@ has no say, all verified against the archive rather than inferred.
 | `--dsw-hovercard-bg` is component-scoped | declared only on the card: `HoverCard.module.css .card{--dsw-hovercard-bg:#2C2C2E}`, and the compiled `._card_38jqx_9`; never declared at `body` or `:root` | an inline `body` write can never win. The card is dark in **both** modes — deliberate-looking, since the inks on it (`.jJkEga_hoverTitle`, `.GY4FdW_taskName`) are white — so this is a coverage gap, not a defect |
 | `--dsw-focus-ring-color` is component-scoped | `html[data-input-modality=pointer] body :focus-visible:not(:read-write){--dsw-focus-ring-color:transparent}` — its only declaration | in pointer modality the ring is transparent *by design*; keyboard focus never matches that selector, so the outline falls back to `--dsw-alias-state-business-primary` and **is** themed |
 | Elevation has no dark recipe upstream | `--dsw-shadow-lv1/2/3` and `--dsw-elevation-soft` carry black alphas with no `body[data-ds-dark-theme]` twin; `--dsw-elevation-*` are additionally a `body,body *` trap | dark surfaces get no lift. Inherited, not introduced here — the shipped dark palette has the same problem |
-| **The onboarding flow is the one sizeable surface left entirely on the shipped cool palette** | `--dsw-alias-onboarding-card-fill`, `-secondary-fill`, `-accent` and `--dsw-gradient-onboarding-{violet,blue,cyan}-stops`; the two *fills* do have a dark twin (`#2c2c2e` 80 %, `#48494c`), the accent and all three gradient stop-sets have exactly **one** declaration each; this palette writes none of them | a cold grey card and a blue-violet accent ring on warm paper, in a theme whose whole point is warm paper. Unlike the rows above this one is **reachable** — they are `body`-level tokens — so it is a coverage decision, not an impossibility |
 
 ### Checked and rejected
 

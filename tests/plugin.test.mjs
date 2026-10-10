@@ -116,6 +116,20 @@ const SHIPPED_SPECIFIC = [
   '--dsw-specific-input-major', '--dsw-specific-login-input', '--dsw-specific-menu',
   '--dsw-specific-selector', '--dsw-specific-sidebar-fill', '--dsw-specific-sidebar-nav-item-active',
   '--dsw-specific-sidebar-nav-item-active-accent', '--dsw-specific-sidebar-nav-item-hover', '--dsw-specific-tip',
+  '--dsw-alias-onboarding-accent', '--dsw-alias-onboarding-card-fill', '--dsw-alias-onboarding-secondary-fill',
+  '--dsw-alias-button-tool-bar-fill', '--dsw-alias-button-tool-bar-hover',
+  '--dsw-alias-button-tool-bar-fill-invisible',
+]
+
+/**
+ * The three decorative onboarding ramps. They are the only names this plugin
+ * writes whose value is not a single colour, so they are listed separately and
+ * validated by their own test rather than by the colour-shape one.
+ */
+const SHIPPED_GRADIENTS = [
+  '--dsw-gradient-onboarding-violet-stops',
+  '--dsw-gradient-onboarding-blue-stops',
+  '--dsw-gradient-onboarding-cyan-stops',
 ]
 
 /**
@@ -188,7 +202,7 @@ const FILL_STATES = [
   '--dsw-alias-state-warn-secondary',
 ]
 
-const ALLOWED = new Set([...SHIPPED_ALIASES, ...SHIPPED_SPECIFIC, ...Object.keys(SHIPPED_NEUTRAL_RAMP)])
+const ALLOWED = new Set([...SHIPPED_ALIASES, ...SHIPPED_SPECIFIC, ...SHIPPED_GRADIENTS, ...Object.keys(SHIPPED_NEUTRAL_RAMP)])
 const THEME_IDS = ['modern-classic', 'novel', 'calm', 'deep-work', 'cream']
 
 /** Read a `const NAME = '...'` string literal out of a source file. */
@@ -205,6 +219,48 @@ const BOOT_GLOBAL = literal(clientSource, 'BOOT_GLOBAL')
 // ---------------------------------------------------------------------------
 
 const COLOUR = /^#[0-9a-f]{6}([0-9a-f]{2})?$/i
+
+/**
+ * The OKLab hue of a colour, in degrees.
+ *
+ * Implemented here rather than imported on purpose: the plugin's own `toOklab` is
+ * the thing under test by the onboarding assertions below, and a shared
+ * implementation would agree with itself no matter which of the two is wrong.
+ */
+function oklabOf(hex) {
+  const channels = [1, 3, 5].map((i) => Number.parseInt(hex.slice(i, i + 2), 16) / 255)
+  const [r, g, b] = channels.map((v) => (v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4))
+  const l = Math.cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b)
+  const m = Math.cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b)
+  const s = Math.cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b)
+  const lightness = 0.2104542553 * l + 0.793617785 * m - 0.0040720468 * s
+  const a = 1.9779984951 * l - 2.428592205 * m + 0.4505937099 * s
+  const bb = 0.0259040371 * l + 0.7827717662 * m - 0.808675766 * s
+  return { L: lightness, hue: (Math.atan2(bb, a) * 180) / Math.PI, chroma: Math.hypot(a, bb) }
+}
+
+/** Signed shortest distance between two hues, in degrees. */
+function hueGap(a, b) {
+  return Math.abs(((a - b + 540) % 360) - 180)
+}
+
+/**
+ * Whether a colour carries `base`'s hue — or is neutral because `base` is.
+ *
+ * Hue is not defined for a near-neutral colour, and several of these palettes are
+ * *deliberately* near-neutral: `modern-classic`'s canvas is `#f7f8fa` (OKLab
+ * chroma 0.003), and a surface re-sampled up from it is simply white. Asking for a
+ * hue there would be asking the solver to invent chroma the gamut does not have.
+ */
+function carriesHue(colour, base, tolerance) {
+  const c = oklabOf(colour)
+  const b = oklabOf(base)
+  // 0.005 is about where a chroma stops being visible; 0.012 is where a palette
+  // stops being "near-neutral by design" — `deep-work`'s dark canvas sits at
+  // 0.007 and is meant to be grey.
+  if (c.chroma < 0.005) return b.chroma < 0.012
+  return hueGap(c.hue, b.hue) <= tolerance
+}
 
 function parseHex(hex) {
   const value = Number.parseInt(hex.slice(1, 7), 16)
@@ -513,6 +569,7 @@ test('every override is a well-formed light/dark pair of colours', () => {
   for (const [name, pair] of Object.entries(tokens)) {
     assert.equal(typeof pair, 'object', `${name} must be a pair`)
     assert.equal(typeof pair.light, 'string', `${name}.light`)
+    if (SHIPPED_GRADIENTS.includes(name)) continue // a ramp, not a colour — see its own test
     assert.match(pair.light, COLOUR, `${name}.light`)
     assert.match(pair.dark, COLOUR, `${name}.dark`)
   }
@@ -892,6 +949,113 @@ test('the question card\'s "Recommended" chip is legible in every palette', () =
         tokens['--dsw-alias-button-info-fill'][mode],
       )
       assert.ok(chip >= 4.5, `${id}/${mode}: Recommended chip ${chip.toFixed(2)}:1 < 4.5`)
+    }
+  }
+})
+
+test('the onboarding ramps are the theme\'s own hue, in the shipped shape', () => {
+  // Upstream these are three fixed hues — violet, blue, cyan — declared once with
+  // no dark twin, so on warm paper they stay blue-violet in both modes. They are
+  // `body`-level and therefore reachable; this pins that they now come from the
+  // accent, in three rotations, at the shipped stop geometry.
+  const SHAPE = {
+    violet: ['33.102', '50.954', '85.326'],
+    blue: ['18.75', '51.78', '86.252'],
+    cyan: ['21.154', '50.954', '85.326'],
+  }
+  for (const id of THEME_IDS) {
+    const tokens = mount({ boot: id }).tokens()
+    for (const mode of ['light', 'dark']) {
+      const accent = oklabOf(tokens['--dsw-alias-onboarding-accent'][mode])
+      const midHues = []
+      for (const [flavour, stops] of Object.entries(SHAPE)) {
+        const raw = tokens[`--dsw-gradient-onboarding-${flavour}-stops`][mode]
+        const parts = raw.split(',').map((part) => part.trim())
+        // Four stops, and only the first three carry a percentage: the ramp closes
+        // on its own first colour at 100 %, which is the shipped shape.
+        assert.equal(parts.length, 4, `${id}/${mode}/${flavour}: ${raw}`)
+        const head = parts.slice(0, 3).map((part) => /^(#[0-9a-f]{6}) ([\d.]+)%$/i.exec(part))
+        assert.ok(head.every(Boolean), `${id}/${mode}/${flavour}: ${raw}`)
+        assert.match(parts[3], /^#[0-9a-f]{6}$/i, `${id}/${mode}/${flavour}: ${raw}`)
+        assert.equal(parts[3], head[0][1], `${flavour} must close on its first stop`)
+        head.forEach(([, , pct], i) => assert.equal(pct, stops[i], `${id}/${mode}/${flavour} stop ${i}`))
+        for (const part of parts) {
+          const colour = part.slice(0, 7)
+          if (oklabOf(colour).chroma < 0.01) continue
+          const gap = hueGap(oklabOf(colour).hue, accent.hue)
+          assert.ok(gap <= 25, `${id}/${mode}/${flavour}: ${colour} is ${gap.toFixed(1)}deg off the accent`)
+        }
+        midHues.push(oklabOf(parts[1].slice(0, 7)).hue)
+      }
+      // Three rotations, so the three cards stay tellable apart.
+      for (let i = 0; i < midHues.length; i += 1) {
+        for (let j = i + 1; j < midHues.length; j += 1) {
+          assert.ok(hueGap(midHues[i], midHues[j]) >= 10, `${id}/${mode}: ramps ${i} and ${j} share a hue`)
+        }
+      }
+    }
+  }
+})
+
+test('the onboarding surfaces float above the canvas, on its hue, and follow the mode', () => {
+  for (const id of THEME_IDS) {
+    const tokens = mount({ boot: id }).tokens()
+    const veil = tokens['--dsw-alias-onboarding-card-fill']
+    const secondary = tokens['--dsw-alias-onboarding-secondary-fill']
+    // The card is a frosted sheet over the gradient art: translucent, like the
+    // shipped 80 % veil, and re-sampled rather than mixed toward white.
+    assert.match(veil.light, /^#[0-9a-f]{8}$/i, veil.light)
+    assert.match(veil.dark, /^#[0-9a-f]{8}$/i, veil.dark)
+    assert.match(secondary.light, COLOUR, secondary.light)
+    assert.notEqual(veil.light, veil.dark)
+    assert.notEqual(secondary.light, secondary.dark)
+    // The accent is the theme's own, not the shipped #3964fe.
+    assert.equal(tokens['--dsw-alias-onboarding-accent'].light, tokens['--dsw-alias-state-business-primary'].light)
+    for (const mode of ['light', 'dark']) {
+      const canvas = tokens['--dsw-alias-bg-base'][mode]
+      assert.ok(oklabOf(veil[mode].slice(0, 7)).L > oklabOf(canvas).L, `${id}/${mode}: the sheet is not above the page`)
+      assert.ok(carriesHue(veil[mode].slice(0, 7), canvas, 6), `${id}/${mode}: the sheet left the canvas hue`)
+      // 12, not 8: `resample` preserves the OKLab hue exactly, but 8-bit rounding
+      // of a low-chroma surface can still rotate it a few degrees (measured worst
+      // case 10.3 on `modern-classic` dark). The ramps carry real chroma and are
+      // held to 25 there, so the hue family is pinned where it is measurable.
+      assert.ok(carriesHue(secondary[mode], canvas, 12), `${id}/${mode}: the secondary fill left the canvas hue`)
+    }
+  }
+})
+
+test('the toolbar veils follow the mode and stay on the theme\'s own hues', () => {
+  // Shipped as a single mid-grey in both modes (#54555780 / #54555799 /
+  // #1f1f1f5c): a cool pill on warm paper, and near-invisible on the dark canvas.
+  for (const id of THEME_IDS) {
+    const tokens = mount({ boot: id }).tokens()
+    for (const name of [
+      '--dsw-alias-button-tool-bar-fill',
+      '--dsw-alias-button-tool-bar-hover',
+      '--dsw-alias-button-tool-bar-fill-invisible',
+    ]) {
+      const pair = tokens[name]
+      assert.match(pair.light, /^#[0-9a-f]{8}$/i, `${id} ${name}: a veil must carry alpha`)
+      assert.match(pair.dark, /^#[0-9a-f]{8}$/i, `${id} ${name}: a veil must carry alpha`)
+      assert.notEqual(pair.light, pair.dark, `${id} ${name} does not follow the mode`)
+      for (const mode of ['light', 'dark']) {
+        // A veil is the ink mixed toward the canvas, so it lands on one of their
+        // hues — unless the whole palette is near-neutral, where hue is noise.
+        const colour = pair[mode].slice(0, 7)
+        const veil = oklabOf(colour)
+        const ink = tokens['--dsw-alias-label-primary'][mode]
+        const canvas = tokens['--dsw-alias-bg-base'][mode]
+        if (veil.chroma < 0.005) {
+          assert.ok(
+            oklabOf(ink).chroma < 0.012 && oklabOf(canvas).chroma < 0.012,
+            `${id}/${mode} ${name}: the veil went neutral on a tinted palette`,
+          )
+          continue
+        }
+        const toInk = hueGap(veil.hue, oklabOf(ink).hue)
+        const toCanvas = hueGap(veil.hue, oklabOf(canvas).hue)
+        assert.ok(Math.min(toInk, toCanvas) <= 10, `${id}/${mode} ${name}: ${veil.hue.toFixed(1)}deg from both`)
+      }
     }
   }
 })

@@ -144,6 +144,8 @@ The palette is derived, not tabulated, and the rules are the point — they were
 
 **Text tiers and semantic states are solved, not inherited.** Each text tier is solved for the contrast the *built-in* palette reaches (light 5.8 / 3.71 / 2.13), so a soft sepia or sage ink is exactly as legible as the shipped near-black one. The built-in semantic states are tuned for `#ffffff` and are legibility failures on warm paper — measured on the cream canvas, `state-warn-primary` is 1.94:1, `state-warn-label` 2.52:1, `state-success-primary` 2.06:1 and `state-error-primary` 4.06:1 — so each theme supplies warm-paper equivalents. The focus ring clears 4.5:1 on all sixty surface pairs.
 
+**A token spent as a background *under* accent-coloured text is solved for that text, not for its own name.** Two of them are: the plan chip's wash (`state-business-tertiary`), and `sidebar-nav-item-active-accent`, whose only consumer in 0.2.0-rc.2 is the question card's "Recommended" chip. Its name reads like an active-row accent and it is declared as one, so deriving it that way — a 12–22 % mix of the accent into the sidebar, sitting under the accent itself — puts the label at **1.25–1.53:1 in all ten palettes**: not faint, invisible. Both are now the largest tint of the accent that still leaves the accent legible on it (the chip clears 4.5:1; the shipped palette's own pairing reaches 3.60:1 in light mode).
+
 Everything above is measured by the test suite: the direction of every step, the 6 L\* ceiling inside a light palette, the L\* 98.5 warm-gamut ceiling, chroma retention across the ramp, the text ladder, and every contrast floor.
 
 ## What it does not reach
@@ -175,7 +177,7 @@ Not tested: Windows, Linux, and DSH versions other than 0.2.0-rc.2. Run `npm tes
 > The `npm` below is just the CLI bundled with Node — no account, nothing published.
 
 ```sh
-npm test             # 45 tests; no install step needed, run it on a bare checkout
+npm test             # 46 tests; no install step needed, run it on a bare checkout
 npm pack --dry-run   # what actually ships (9 files)
 ```
 

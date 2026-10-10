@@ -846,6 +846,30 @@ test('tokens consumed as a background keep their own text legible', () => {
   }
 })
 
+test('the question card\'s "Recommended" chip is legible in every palette', () => {
+  // The second, independent instance of the gap above — and the one that shipped
+  // broken. `.y21zpG_badge` (ui-user-questions) draws
+  // `background: sidebar-nav-item-active-accent; color: button-info-fill` at
+  // 11px/600, and this theme points `button-info-fill` at the accent itself. Both
+  // sides used to be derived from the accent on their own (a 12–22% mix into the
+  // sidebar, under the accent), which measures 1.25–1.53 in *every* theme and both
+  // modes: the label disappears rather than reads faintly. The archive has exactly
+  // one consumer of that token, so it is solved as a wash for the accent's own
+  // legibility. 4.5 is a *higher* floor than the shipped pairing reaches in light
+  // mode (3.60:1 — deepseek-500 on deepseek-100), and the same one it reaches in
+  // dark (5.20:1 — deepseek-400 on bluish-800).
+  for (const id of THEME_IDS) {
+    const tokens = mount({ boot: id }).tokens()
+    for (const mode of ['light', 'dark']) {
+      const chip = contrast(
+        tokens['--dsw-specific-sidebar-nav-item-active-accent'][mode],
+        tokens['--dsw-alias-button-info-fill'][mode],
+      )
+      assert.ok(chip >= 4.5, `${id}/${mode}: Recommended chip ${chip.toFixed(2)}:1 < 4.5`)
+    }
+  }
+})
+
 test('semantic states are re-derived for warm paper, not inherited', () => {
   // The shipped states are tuned for #ffffff. On the cream canvas they measure
   // 1.94:1 (warn-primary), 2.52:1 (warn-label), 2.06:1 (success) and 4.06:1

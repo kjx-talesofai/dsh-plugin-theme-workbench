@@ -697,7 +697,19 @@ window.__ModuleLoader__.load({
         '--dsw-specific-sidebar-fill': sidebar,
         '--dsw-specific-sidebar-nav-item-hover': mix(sidebar, ink, dark ? 0.1 : 0.045),
         '--dsw-specific-sidebar-nav-item-active': mix(sidebar, ink, dark ? 0.14 : 0.07),
-        '--dsw-specific-sidebar-nav-item-active-accent': mix(accent, sidebar, dark ? 0.22 : 0.12),
+        // Not `mix(accent, sidebar, …)`. The name reads like an active-row accent,
+        // but 0.2.0-rc.2 has exactly one consumer of it — `.y21zpG_badge` in
+        // ui-user-questions, the question card's "Recommended" chip — and that
+        // rule spends it as the background UNDER accent-coloured text
+        // (`--dsw-alias-button-info-fill`, which this theme sets to the accent
+        // itself). Filling that pairing from both ends lands the chip at 1.25–1.53
+        // across all ten palettes: the label is not faint, it is invisible. The
+        // shipped palette avoids it by pairing `deepseek-100` under `deepseek-500`,
+        // and the other half of the pair cannot move instead — `button-info-fill` is
+        // a real fill, with `ui-conversation` painting a white-text primary button
+        // in it — so the wash is solved the way `state-business-tertiary` is: the
+        // largest tint of the accent that still leaves the accent legible on it.
+        '--dsw-specific-sidebar-nav-item-active-accent': tint(dark ? canvas : WHITE, accent, 4.5),
         '--dsw-specific-bubble': bubble,
         '--dsw-specific-bubble-highlight': mix(bubble, accent, dark ? 0.18 : 0.1),
         '--dsw-specific-input-major': composer,

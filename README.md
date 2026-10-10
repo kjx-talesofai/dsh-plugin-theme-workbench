@@ -1,169 +1,215 @@
+<p align="center">
+  <img src="assets/icon.svg" alt="dsh-plugin-theme-workbench" height="112"/>
+</p>
+
 # dsh-plugin-theme-workbench
 
-Five themes for the DeepSeek Harness Web client. Each ships a light and a dark
-palette, and your light / dark / system setting still chooses between them.
+Five themes for the **DeepSeek Harness** Web client. Each ships a **light and a dark palette**, so your own light / dark / system setting still chooses the mode — and the choice is saved as a real Host preference, not in browser storage.
 
-## Install
+<p align="center">
+  <a href="https://github.com/kjx-talesofai/dsh-plugin-theme-workbench/releases"><img src="https://img.shields.io/github/v/release/kjx-talesofai/dsh-plugin-theme-workbench?label=release&style=flat-square&color=blue" alt="release"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/kjx-talesofai/dsh-plugin-theme-workbench?label=license&style=flat-square&color=green" alt="license"></a>
+  <a href="https://github.com/kjx-talesofai/dsh-plugin-theme-workbench/actions/workflows/ci.yml"><img src="https://github.com/kjx-talesofai/dsh-plugin-theme-workbench/actions/workflows/ci.yml/badge.svg?branch=main&event=push" alt="CI"></a>
+  <img src="https://img.shields.io/badge/DSH-%E2%89%A5%200.2.0--rc.1-blueviolet?style=flat-square" alt="DSH >= 0.2.0-rc.1">
+</p>
 
-Not published on npm, so install it from the repository:
+> dsh-plugin-theme-workbench — 五套主题，每套都带浅色与深色，米白是默认
 
-```sh
-dsh plugin --profile desktop add github:kjx-talesofai/dsh-plugin-theme-workbench#v0.1.0
-```
+<details>
+<summary><b>中文说明（点开）</b> —— 五套主题，每套都带明暗两套配色，米白是默认</summary>
 
-A local checkout works too, but the path must be **absolute** — a relative path is
-refused:
+**它是什么**：DSH Web 客户端的主题插件。在「设置 → 通用」里加一行选择器，五套主题任选：**米白**（默认，暖米白纸感）、**书卷**（旧纸棕墨）、**静谧**（柔和鼠尾草绿）、**现代经典**（冷调纸白 + 深蓝点缀）、**深度工作**（近黑白）。
 
-```sh
-dsh plugin --profile desktop add /absolute/path/to/dsh-plugin-theme-workbench
-```
+**为什么做**：DSH 内置的「外观」那一行是**写死的三个方块**（浅色／深色／跟随系统），第三方主题永远挤不进去；而且 `ctx.theme.setTheme(第三方id)` 在源码里只把 `light|dark|system` 三个值写进设置，其余**不落盘**——选了，重启就没了。所以第三方主题这个扩展点，官方文档自己写着「是扩展点，不是产品」。这个插件把这条缝补齐：自己画一行选择器，并且把选择真正存起来。
 
-Restart to load the Host half, then open **Settings → General → Theme**. Changing
-the theme afterwards needs no restart and no refresh.
+**和其他主题插件的分工**：社区里多数主题要么自己往页面塞 `<style>` 硬盖（只能靠 `!important`，DSH 一改样式就崩），要么走 `register()` ——而 `register()` 正是上面那条死路。这个插件走的是官方通道 `ctx.theme.overrideTokens()`：它只在**当前生效的内置主题之上叠一层 token**，所以**你的明暗偏好照常工作**，系统切换主题时配色也跟着切。代价是它只能改配色，不能改字体、圆角、壁纸。
 
-To upgrade, uninstall first and then install the new revision; reinstalling over
-an existing row is not supported.
+**怎么装**（在 DSH「添加插件」里填，**不需要 npm 账号、也无需发布**）：
+
+| 填入 | 形式 |
+|---|---|
+| GitHub | `github:kjx-talesofai/dsh-plugin-theme-workbench#v0.1.0`（当前可用） |
+| 本地目录 | 绝对路径，例如 `/path/to/dsh-plugin-theme-workbench` |
+
+装完**重启桌面端**（host 半边只在启动时加载）。之后换主题**不用刷新、也不用再重启**。
+
+**怎么用**：设置 → 通用 → **主题** → 点色块。每块色块左边是浅色、右边是深色，中间一点是强调色。
+
+**注意事项**：
+
+- **macOS 的侧边栏只能「染色」**：它是系统级的半透明毛玻璃（Electron vibrancy），插件那条 sidebar token 只占到一层 40% 透明混合里的 **38.8%**，底下还有一条写死的蓝紫渐变。硬要它变成不透明的米白，等于把系统的通透感干掉，会更难看，所以不做。侧边栏的**图标、hover、选中态**都是跟着主题走的。
+- **阴影改不了**：DSH 把阴影配方声明在 `body, body *` 上，每个元素都自己重新声明一遍，body 级覆盖被屏蔽。只有它的发丝线颜色跟着主题。（所以**每一块面都得靠填充色和发丝线把层次说清楚**，这也是本插件把表面阶梯做得很讲究的原因。）
+- **非 loopback 页面不落盘**：DSH 在非回环地址下把设置作用域放在内存里，主题这次会生效，刷新就没了。
+- 只改了配色：**字体、圆角、语法高亮、壁纸**都不在范围内。
+
+**卸载**：DSH「插件」列表里卸载 `dsh-plugin-theme-workbench` → 重启。主题选择留在你 profile 的 `cordis.patch.yml` 里，想一起清掉就把那段 `- id: theme-workbench` 删掉。
+
+**老实说（实测范围）**：只在 **macOS（Apple Silicon）+ DSH Desktop 0.2.0-rc.2** 上端到端跑过（浅色、深色、切换、落盘、卡片观感都实际看过）。Windows / Linux 未测；DSH 升级后上游契约可能变化，见下方 Compatibility。
+
+</details>
+
+## Why
+
+DSH's built-in Appearance row renders a hardcoded Light / Dark / System cube set, so a third-party theme has nowhere to appear. And `ctx.theme.setTheme` only persists ids inside that same three-value union — so a theme registered through `ctx.theme.register()` is both invisible to the shipped picker *and* loses its selection on restart. The upstream README is candid about this: third-party themes are "an extension point, not a product".
+
+This plugin closes both gaps and nothing else:
+
+- **It stacks a token layer** with `ctx.theme.overrideTokens()` over whichever built-in theme is active, rather than registering a theme of its own. Your light / dark / system preference keeps working, and the OS scheme keeps flipping the palette — so every theme here ships **two** palettes instead of being locked to one.
+- **It draws its own row**, because a theme that wants a switch has to.
+- **It saves the choice as a Host preference**, next to every other DSH setting, instead of in `localStorage`.
+- **It is a palette plugin, not a reskin.** Fonts, radii, syntax highlighting and wallpapers stay DSH's.
 
 ## The themes
 
 | Theme | Light canvas | Dark canvas | Character |
 | --- | --- | --- | --- |
-| Modern Classic | `#fbfbfc` | `#15171b` | Cool paper, near-black ink, deep blue accent |
+| **Cream** (default) | `#f7f3ea` | `#1b1917` | Warm off-white paper, soft clay accent |
 | Novel | `#f6f0e2` | `#1d1a15` | Aged paper, sepia ink, muted oxblood |
 | Calm | `#f2f5f2` | `#111614` | Soft sage, low contrast, quiet edges |
+| Modern Classic | `#f7f8fa` | `#15171b` | Cool paper, near-black ink, deep blue accent |
 | Deep Work | `#f6f6f5` | `#0c0e11` | Near-monochrome, high contrast, muted bronze |
-| **Cream** (default) | `#f7f3ea` | `#1b1917` | Warm off-white paper, soft clay accent |
 
-Each theme is three seed colours per mode — a canvas, an ink and an accent — from
-which 108 structural tokens are derived. Nothing else is hand-listed, so a theme
-cannot drift out of its own hue or quietly lose its warmth.
+Each theme is **three seed colours per mode** — a canvas, an ink and an accent — from which all **108 tokens** are derived. Nothing else is hand-listed, so a theme cannot drift out of its own hue or quietly lose its warmth.
 
-Two rules do most of the work:
+## Install
 
-- **In light mode, content surfaces step *down* from the canvas.** Cards, the
-  composer, the sidebar, code blocks and bubbles are all slightly darker than the
-  page; only things that genuinely float (menus, popovers) sit above it. That is
-  what paper-like palettes do — Material 3's container ladder steps down 2 tone
-  units, as do Solarized, Everforest, Kanagawa, Catppuccin and Radix — because a
-  raised sheet is *shadowed*, and because at L\* 97–99 there is almost no sRGB room
-  left for chroma, so a lighter warm surface is white by force of the colour space
-  no matter what was intended. Dark mode inverts the direction.
-- **Text tiers are solved for a contrast target**, not faded by a fixed fraction,
-  so a soft sepia or sage ink is exactly as legible as the shipped near-black one.
-  The built-in palette puts `label-tertiary` at 3.71:1 in light mode; every theme
-  here meets or beats that ladder rather than merely approaching it.
+Use DSH's plugin install dialog (**Add plugin**) with either of these, then restart the desktop app:
 
-## How it works
+```text
+github:kjx-talesofai/dsh-plugin-theme-workbench#v0.1.0   # GitHub, pinned to this release
+/absolute/path/to/dsh-plugin-theme-workbench             # local checkout (dev)
+```
 
-- **`ctx.theme.overrideTokens`, not `register`.** `register` adds a theme to the
-  registry, but `setTheme` only persists ids in the built-in `light | dark |
-  system` union — so a registered third-party theme stays invisible to the
-  shipped picker *and* loses its selection on restart. Stacking a token layer
-  over the active built-in theme avoids both problems and lets the OS scheme
-  keep flipping the palette.
-- **The choice is a real Host preference.** The Host half declares a
-  `.volatile()` `Config` field; the browser half reads and writes it through
-  `ctx.configForms`, so it lands in your profile's `cordis.patch.yml` next to
-  every other DSH preference — not in `localStorage`.
-- **The chosen palette is what renders first.** The Host pushes the persisted id
-  into every index render as a `global` row, so the browser half's first
-  `overrideTokens` call already uses your theme. Without that, the settings scope
-  starts at its schema defaults, so the app would paint the default palette and
-  then visibly repaint when the durable value loaded. (DSH's own pre-plugin
-  loading screen is still drawn by its bootstrap before any plugin mounts, so that
-  screen keeps the built-in canvas colour; it goes as soon as the shell mounts.)
-- **Semantic states are re-derived for warm paper, not inherited.** The built-in
-  states are tuned for `#ffffff`, and on a cream canvas they are legibility
-  failures rather than style choices: `state-warn-primary` measures 1.94:1,
-  `state-warn-label` 2.52:1, `state-success-primary` 2.06:1 and
-  `state-error-primary` 4.06:1. Each theme supplies warm-paper equivalents that
-  clear 4.5:1 where the colour is read as text. The diff colours, the masks and
-  the document-selection blue *are* left to the built-in palette, because they
-  either mean green/red by universal convention or are composited over un-themed
-  document pixels. One more token is affected indirectly: the plugin never writes
-  `state-idle-primary`, but it reads the cold-grey ramp, and that ramp is tinted
-  (see below), so its hue follows the theme while its meaning does not. That is
-  the entire reach of the ramp write — the other seven aliases reading the ramp
-  are overridden directly — and a test pins the list.
-- **One dependency, and it is only for the Host half.** The settings schema must
-  be a real `schemastery` schema: `dsh-settings` resolves an entry's `Config` with
-  `schema !== undefined && "toJSON" in schema`, and then walks it to decide which
-  fields are page-writable. A hand-rolled object cannot satisfy that. The browser
-  half has no dependencies at all — it only requires the loader's `react` seed.
+> This plugin is **not published to the npm registry**. A relative path is refused by DSH (`a local path must be absolute`), so use the absolute one. `npm pack` (in a checkout) produces a `.tgz` you can hand to someone else.
 
-## What this is not
+CLI equivalent:
 
-A palette plugin, not a full reskin. A custom property on `:root` still inherits
-into `body`, so a `body`-level override *does* win for body's descendants — which
-means syntax colours (`--shiki-token-*`), fonts and corner radii are technically
-reachable from here, and a plugin that wants them can set them the same way. What
-is genuinely out of reach is a shorter list:
+```sh
+dsh plugin --profile desktop add github:kjx-talesofai/dsh-plugin-theme-workbench#v0.1.0
+```
 
-- **Anything declared on `body, body *`.** The `--dsw-elevation-stroke` /
-  `-panel` / `-prominent` / `-soft` shadow recipes are re-declared on *every*
-  element, so a `body` override is shadowed everywhere and shadows cannot be
-  re-themed. Their colour does follow the theme, because that part
-  (`--dsw-elevation-stroke-color`) is body-level and reads `border-l4`.
-- **Native material.** On macOS the sidebar column is Electron vibrancy, not a
-  painted fill: the only CSS is a `color-mix` that dilutes this plugin's
-  `--dsw-specific-sidebar-fill` to 38.8% of a 40%-alpha layer, over a hardcoded
-  blue gradient, over whatever is behind the window. The sidebar is therefore
-  *tinted*, never recoloured, and the same is true of the window backdrop. That is
-  the platform's translucency, not something a token can or should defeat.
-- **Hardcoded literals in component CSS** — a few macOS-only fills such as the
-  new-session button's `#ffffff8c`, which no token feeds.
+To upgrade, uninstall first and then install the new revision — reinstalling over an existing row is not supported.
 
-If you want a deeper reskin, inject your own stylesheet — but still call
-`overrideTokens` for the palette, so the `theme-color` metadata and the native
-window chrome follow along.
+## Usage
 
-## Requirements
+1. **Settings → General → Theme.**
+2. Click a swatch. Each swatch shows the light palette on its left half and the dark on its right, with the accent as the dot.
+3. Switch **Settings → General → Appearance** between Light and Dark to see the other palette. No refresh, no restart.
 
-- DSH `>=0.2.0-rc.1 <0.3.0-0`, web client.
-- A loopback page. DSH runs its settings scope in memory on a non-loopback
-  address, where a theme still applies for the session but is not persisted.
-
-## Known limitations
-
-- **The macOS sidebar only tints.** See above: it is a native translucent
-  material, and this plugin's sidebar token reaches only 38.8% of a 40%-alpha
-  layer of it. The sidebar's icons, hover and active states do follow the theme;
-  its background cannot be made opaque without discarding the platform's
-  translucency.
-- **Shadows are fixed.** The elevation recipes are re-declared per element, so
-  their geometry and alpha apply unchanged; only their hairline colour follows.
-- **Non-loopback pages do not persist.** DSH keeps its settings scope in memory
-  off loopback, so the theme applies for the session and resets on reload.
-
-## Configure without the UI
-
-The row id is the settings namespace, so the value can also be set in the
-profile's `cordis.patch.yml`:
+The choice lands in your profile's `cordis.patch.yml`, so it can also be set without the UI:
 
 ```yaml
 - id: theme-workbench
   name: 'dsh-plugin-theme-workbench'
   config:
-    theme: cream # modern-classic | novel | calm | deep-work | cream
+    theme: cream # cream | novel | calm | modern-classic | deep-work
 ```
+
+### How it works
+
+```
+Settings row ──▶ ctx.configForms ──▶ host Config ──▶ ~/.dsh/profiles/<p>/cordis.patch.yml
+     │  (the row id IS the settings namespace)
+     │
+     └──▶ ctx.theme.overrideTokens(source, { token: { light, dark } })
+                        │
+                        ▼
+        ThemePresenter writes them as inline custom properties on <body>,
+        retracting the previous set first — so unloading restores everything.
+
+index render ──▶ webserver/index-inject { kind: 'global' }
+                        │
+                        ▼
+        globalThis.__DSH_THEME_WORKBENCH__ = <persisted id>
+                        │
+                        └──▶ the plugin's FIRST overrideTokens call is already correct,
+                             instead of the schema default followed by a repaint.
+```
+
+| | |
+|---|---|
+| Apply | `ctx.theme.overrideTokens`, one layer keyed by the package id (re-apply replaces, never stacks) |
+| Persist | a `.volatile()` `Config` field on the Host half; `dsh-settings` derives the namespace from the Loader row id |
+| First paint | the persisted id is pushed into every index render as a `global` row |
+| Row | one additive occupant of `settings.general.item`, own id, `order: 13` |
+| Teardown | the override layer, the row's `<style>` tag, the locale dict and the slot injection all return real disposers |
+
+## Design rules
+
+The palette is derived, not tabulated, and the rules are the point — they were researched against published design systems and then verified numerically. Two of them are counter-intuitive enough to be worth stating.
+
+**In light mode, content surfaces step *down* from the canvas.** Cards, the composer, the sidebar, code blocks and bubbles are all slightly *darker* than the page; only surfaces that genuinely float (menus, popovers, dialogs) sit above it, capped at L\* 98.5. That is what paper-like palettes actually do — Material 3's container ladder steps down 2 tone units, and Solarized, Everforest, Kanagawa, Catppuccin and Radix all step down too. Two reasons: a raised sheet is *shadowed*, and at L\* 97–99 there is almost no sRGB room left for chroma, so a lighter warm surface is white **by force of the colour space** no matter what was intended. Dark mode inverts the direction, because emission adds light.
+
+**Nothing is derived by mixing toward white.** Surfaces are *re-sampled* from the canvas: keep the hue, move the lightness, scale the chroma by an explicit factor. The old mix spent the canvas chroma by construction — the composer step kept 13.4% of the cream canvas's warmth and landed on `#fefdfc`.
+
+**Text tiers and semantic states are solved, not inherited.** Each text tier is solved for the contrast the *built-in* palette reaches (light 5.8 / 3.71 / 2.13), so a soft sepia or sage ink is exactly as legible as the shipped near-black one. The built-in semantic states are tuned for `#ffffff` and are legibility failures on warm paper — measured on the cream canvas, `state-warn-primary` is 1.94:1, `state-warn-label` 2.52:1, `state-success-primary` 2.06:1 and `state-error-primary` 4.06:1 — so each theme supplies warm-paper equivalents. The focus ring clears 4.5:1 on all sixty surface pairs.
+
+Everything above is measured by the test suite: the direction of every step, the 6 L\* ceiling inside a light palette, the L\* 98.5 warm-gamut ceiling, chroma retention across the ramp, the text ladder, and every contrast floor.
+
+## What it does not reach
+
+- **The macOS sidebar only tints.** It is Electron vibrancy, not a painted fill: the only CSS is a `color-mix` that dilutes this plugin's sidebar token to **38.8% of a 40%-alpha layer**, over a hardcoded blue gradient, over whatever is behind the window. Recolouring it would mean discarding the platform's translucency. Its icons, hover and active states do follow the theme.
+- **Shadows are fixed.** `--dsw-elevation-stroke/-panel/-prominent/-soft` are re-declared on `body, body *`, so every element shadows a body-level override and the recipes' geometry and alpha apply unchanged. Their *hairline colour* does follow, because that part is body-level.
+- **A few macOS-only literals**, such as the new-session button's `#ffffff8c`, which no token feeds.
+- **Fonts, radii and syntax highlighting.** A `:root` custom property still inherits into `body`, so these are technically reachable from here; this plugin deliberately does not touch them.
+
+## Compatibility
+
+Verified end-to-end on **macOS (Apple Silicon) · DSH Desktop 0.2.0-rc.2**, with the light and dark palettes, live switching and persistence all confirmed by eye and by inspecting the running theme service.
+
+Upstream contracts this plugin depends on, all pinned by the test suite:
+
+| Contract | Where it comes from |
+|---|---|
+| `overrideTokens(source, {light, dark})` replaces per source | `dsh-client-ui-theme` |
+| The token layer is applied inline on `body`, retracted on change | `dsh-client-ui-layout` (`ThemePresenter`) |
+| `Config` needs `toJSON`; the namespace is the Loader row id; only `.volatile()` fields are page-writable | `dsh-settings` |
+| `kind: 'global'` index-injection rows | `dsh-host-webserver` |
+| A client bundle needs `dsh.client.platform` **and** `exports["./client"]` | `dsh-client-modules` |
+| The 107 `--dsw-alias-*` names and their light/dark values | `dsh-client-ui-theme` |
+
+Not tested: Windows, Linux, and DSH versions other than 0.2.0-rc.2. Run `npm test` first after a DSH upgrade — the allowlist of token names is a deliberate snapshot, so an upstream rename fails loudly instead of silently leaking the built-in colour.
 
 ## Development
 
+> The `npm` below is just the CLI bundled with Node — no account, nothing published.
+
 ```sh
-npm test
+npm test             # 45 tests; no install step needed, run it on a bare checkout
+npm pack --dry-run   # what actually ships (9 files)
 ```
 
-Two references back the implementation, both dev-only and neither shipped:
+`npm test` needs no `node_modules`: the suite evaluates the browser half as a script in a `node:vm` and reads the Host half as text, so it never imports the one runtime dependency. CI relies on exactly that.
 
-- `docs/token-inventory.md` — the token surface of DSH 0.2.0-rc.2: where the
-  light/dark palettes actually live, how a snapshot reaches the DOM, all 107
-  `--dsw-alias-*` names (101 of which carry both mode values), and the traps a
-  theme author hits (`brand-primary` is *not* the accent; `menu-icon` and
-  `turn-trigger-bg` derive from different sources per mode; ten aliases are
-  consumed but declared nowhere).
-- `docs/surface-map.md` — which token paints which surface, which surfaces are
-  re-declared locally, and what a `body`-level override can never reach.
+Repo layout — **sources vs artifacts**:
+
+| Path | What it is | Ships to users |
+|---|---|---|
+| `index.js` | host half: the `.volatile()` settings schema + the index-injection row | ✓ |
+| `client.js` | browser half: the hand-written client bundle (no build step) | ✓ |
+| `cordis.patch.yml` | bundle layer: inserts this plugin's Loader row | ✓ |
+| `assets/icon.svg` | plugin icon shown in DSH's plugin manager | ✓ |
+| `locale/{en,zh}.json` | plugin-manager title and description | ✓ |
+| `tests/plugin.test.mjs` | the whole suite: bundle shape, slot contract, token derivation, contrast floors, the selection pipeline | ✗ |
+| `docs/token-inventory.md` | the DSH 0.2.0-rc.2 token surface: where the light/dark palettes live, how a snapshot reaches the DOM, all 107 alias names, and the traps | ✗ |
+| `docs/surface-map.md` | which token paints which surface, what is re-declared locally, and what a `body`-level override can never reach | ✗ |
+| `docs/design-notes.md` | the warm-paper design specification the surface ramp is built from: reference palettes with citations, the elevation recipe, chroma and hue discipline, anti-patterns | ✗ |
+| `tools/asar.mjs` | read-only ASAR reader used to inspect the app bundle | ✗ |
+
+The three `docs/` references are the research behind the numbers and are deliberately kept in the repo: two describe the platform (what is themeable, what is not), and the third is the design argument. None of them ship.
+
+## Uninstall
+
+Remove the plugin in DSH's plugin list and restart. The theme choice stays in your profile's `cordis.patch.yml`; delete the `- id: theme-workbench` block to remove it too.
 
 ## License
 
-MIT
+[MIT](LICENSE) © 2026 Jiaxin Kou
+
+<p align="center">
+  <a href="https://hypersampling.com">
+    <img src="https://assets.hypersampling.com/hyper-sampling-2.jpg" alt="hypersampling" height="38"/>
+  </a>
+</p>
+
+Built by [Jiaxin Kou](https://hypersampling.com) · [GitHub](https://github.com/kjx-talesofai)

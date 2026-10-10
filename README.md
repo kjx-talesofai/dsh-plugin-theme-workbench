@@ -108,7 +108,7 @@ The choice lands in your profile's `cordis.patch.yml`, so it can also be set wit
 ### How it works
 
 ```
-Settings row ──▶ ctx.configForms ──▶ host Config ──▶ ~/.dsh/profiles/<p>/cordis.patch.yml
+Settings row ──▶ ctx.configForms ──▶ host Config ──▶ ~/.dsh/profiles/PROFILE/cordis.patch.yml
      │  (the row id IS the settings namespace)
      │
      └──▶ ctx.theme.overrideTokens(source, { token: { light, dark } })

@@ -67,9 +67,19 @@ approaching it.
   loading screen is still drawn by its bootstrap before any plugin mounts, so that
   screen keeps the built-in canvas colour; it goes as soon as the shell mounts.)
 - **Semantics are inherited, not recoloured.** `state-error-*`, `state-success-*`,
-  `state-warn-*`, `state-idle-*`, the diff colours, the masks and the
-  document-selection blue keep their built-in values, so red still means failure
-  and a selection over a document image still reads as a selection.
+  `state-warn-*`, the diff colours, the masks and the document-selection blue keep
+  their built-in values, so red still means failure and a selection over a
+  document image still reads as a selection. The one exception is
+  `state-idle-primary`: the plugin never writes it, but it reads the cold-grey
+  ramp, and that ramp is tinted (see below), so its hue follows the theme while
+  its meaning does not. That is the whole reach of the ramp write — the other
+  seven aliases reading the ramp are overridden directly — and a test pins the
+  list so a future alias cannot drift in unnoticed.
+- **One dependency, and it is only for the Host half.** The settings schema must
+  be a real `schemastery` schema: `dsh-settings` resolves an entry's `Config` with
+  `schema !== undefined && "toJSON" in schema`, and then walks it to decide which
+  fields are page-writable. A hand-rolled object cannot satisfy that. The browser
+  half has no dependencies at all — it only requires the loader's `react` seed.
 
 ## What this is not
 

@@ -356,9 +356,15 @@ window.__ModuleLoader__.load({
      * overrides aliases leaves them cold grey — white patches on a warm page.
      * Warming the ramp is what reaches them, which is also why this is the one
      * place this plugin writes `--dsw-static-*`: the inventory notes the ramp is
-     * "not validated anywhere; the palette is only a convention", and the aliases
-     * that consume it are all overridden here anyway, so the only aliases that
-     * change are the ones this plugin deliberately leaves to the built-in palette.
+     * "not validated anywhere; the palette is only a convention".
+     *
+     * The blast radius is measured, not assumed. Eight shipped aliases read the
+     * neutral ramp; seven of them this plugin overrides directly, so their own
+     * value wins and the ramp never reaches them. Exactly one is left to the
+     * built-in palette — `state-idle-primary` — so it is the single token whose
+     * hue follows the theme even though the plugin does not write it. A test pins
+     * that list, so a future DSH alias reading the ramp fails loudly instead of
+     * shifting silently.
      */
     const STATIC_NEUTRALS = {
       'neutral-00': '#ffffff',

@@ -147,6 +147,25 @@ const SHIPPED_NEUTRAL_RAMP = {
   '--dsw-static-neutral-1000': '#000000',
 }
 
+/**
+ * Shipped aliases that read the cold-grey ramp.
+ *
+ * Tinting the ramp is the one place this plugin writes `--dsw-static-*`, so its
+ * blast radius has to be a known quantity rather than a hope. Seven of these are
+ * overridden directly by the plugin, so the ramp never reaches them; exactly one
+ * is deliberately left to the built-in palette.
+ */
+const NEUTRAL_RAMP_CONSUMERS = [
+  '--dsw-alias-bg-multi-select',
+  '--dsw-alias-label-shimmer',
+  '--dsw-alias-markdown-inline-code',
+  '--dsw-alias-scrollbar-bg-l1',
+  '--dsw-alias-scrollbar-bg-l2',
+  '--dsw-alias-scrollbar-hover-l1',
+  '--dsw-alias-scrollbar-hover-l2',
+  '--dsw-alias-state-idle-primary',
+]
+
 /** Semantic families the themes deliberately inherit from the built-in palette. */
 const INHERITED = [
   '--dsw-alias-state-error-primary', '--dsw-alias-state-error-secondary',
@@ -620,6 +639,16 @@ test('the neutral ramp is tinted without moving its lightness', () => {
       assert.ok(ladder[step] < ladder[step - 1], `${id}: the ramp is no longer monotonic at step ${step}`)
     }
   }
+})
+
+test('tinting the ramp reaches exactly one alias it does not write', () => {
+  // The ramp write is the plugin's one blunt instrument, so its reach is pinned:
+  // the aliases that read the ramp are either overridden directly (their own
+  // value wins) or explicitly accounted for. A new DSH alias reading the ramp
+  // fails here rather than changing colour unnoticed.
+  const written = new Set(Object.keys(mount().tokens()))
+  const reached = NEUTRAL_RAMP_CONSUMERS.filter((name) => !written.has(name))
+  assert.deepEqual(reached, ['--dsw-alias-state-idle-primary'])
 })
 
 test('the neutral ramp inherits the theme cast instead of imposing one', () => {

@@ -36,7 +36,7 @@ jobs:
           for expected in client.js index.js cordis.patch.yml assets/icon.svg locale/en.json locale/zh.json; do
             grep -qF "$expected" "$RUNNER_TEMP/pack.txt" || { echo "::error::missing from the tarball: $expected"; exit 1; }
           done
-          for dev_only in 'tools/' 'tests/' 'plugin.test' 'token-inventory'; do
+          for dev_only in 'tools/' 'tests/' 'plugin.test' 'token-inventory' 'design-notes' 'surface-map'; do
             if grep -qF "$dev_only" "$RUNNER_TEMP/pack.txt"; then
               echo "::error::dev-only file in the tarball: $dev_only"
               exit 1

@@ -320,28 +320,28 @@ window.__ModuleLoader__.load({
     const THEMES = [
       {
         id: 'modern-classic',
-        light: { canvas: '#fbfbfc', surface: '#ffffff', sidebar: '#f4f5f7', bubble: '#eef1f6', ink: '#15181d', accent: '#2f4b8f', code: '#f6f7f9' },
-        dark: { canvas: '#15171b', surface: '#35393f', sidebar: '#111316', bubble: '#232730', ink: '#eceef2', accent: '#8aa7e8', code: '#101215' },
+        light: { canvas: '#f7f8fa', surface: '#ffffff', sidebar: '#eff2f5', bubble: '#e9edf4', ink: '#15181d', accent: '#2f4b8f', code: '#f3f5f8' },
+        dark: { canvas: '#15171b', surface: '#35393f', sidebar: '#0f1113', bubble: '#232730', ink: '#eceef2', accent: '#8aa7e8', code: '#101215' },
       },
       {
         id: 'novel',
         light: { canvas: '#f6f0e2', surface: '#fcf8ec', sidebar: '#efe7d5', bubble: '#ede2cc', ink: '#332e26', accent: '#8f4632', code: '#f1ead9' },
-        dark: { canvas: '#1d1a15', surface: '#3d372c', sidebar: '#181510', bubble: '#2b261e', ink: '#e9e0cd', accent: '#c98a70', code: '#16130f' },
+        dark: { canvas: '#1d1a15', surface: '#3d372c', sidebar: '#171410', bubble: '#2b261e', ink: '#e9e0cd', accent: '#c98a70', code: '#16130f' },
       },
       {
         id: 'calm',
         light: { canvas: '#f2f5f2', surface: '#fafcfa', sidebar: '#eaefea', bubble: '#e6ece7', ink: '#2c3733', accent: '#4f7d68', code: '#edf1ed' },
-        dark: { canvas: '#111614', surface: '#2c352f', sidebar: '#0d1210', bubble: '#1d2622', ink: '#dde7e1', accent: '#82b79d', code: '#0c100e' },
+        dark: { canvas: '#111614', surface: '#2c352f', sidebar: '#0b0f0d', bubble: '#1d2622', ink: '#dde7e1', accent: '#82b79d', code: '#0c100e' },
       },
       {
         id: 'deep-work',
         light: { canvas: '#f6f6f5', surface: '#ffffff', sidebar: '#eeeeec', bubble: '#e9e9e6', ink: '#101112', accent: '#8a5a1e', code: '#f0f0ee' },
-        dark: { canvas: '#0c0e11', surface: '#2b3037', sidebar: '#090a0c', bubble: '#171a1e', ink: '#e8eaec', accent: '#c9974a', code: '#080a0c' },
+        dark: { canvas: '#0c0e11', surface: '#2b3037', sidebar: '#040405', bubble: '#171a1e', ink: '#e8eaec', accent: '#c9974a', code: '#080a0c' },
       },
       {
         id: 'cream',
         light: { canvas: '#f7f3ea', surface: '#fdfbf5', sidebar: '#f2ece0', bubble: '#f0e7d6', ink: '#2f2a24', accent: '#a8703f', code: '#f3eee3' },
-        dark: { canvas: '#1b1917', surface: '#3d3831', sidebar: '#161412', bubble: '#2a2622', ink: '#ece5da', accent: '#d9a273', code: '#141210' },
+        dark: { canvas: '#1b1917', surface: '#3d3831', sidebar: '#151312', bubble: '#2a2622', ink: '#ece5da', accent: '#d9a273', code: '#141210' },
       },
     ]
 

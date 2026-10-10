@@ -528,6 +528,19 @@ test('the focus ring follows the theme', () => {
   assert.equal(tokens['--dsw-alias-state-business-primary'].dark, accent.dark)
 })
 
+/**
+ * CIE L* — perceptual lightness, 0..100.
+ *
+ * Used to ask whether a surface step is *visible* rather than merely nonzero:
+ * L* is roughly uniform in perceived lightness, so a 2 L* difference reads
+ * clearly while a 0.5 L* one does not read at all.
+ */
+function cieL(hex) {
+  const y = luminance(hex)
+  const f = y > (6 / 29) ** 3 ? Math.cbrt(y) : y / (3 * (6 / 29) ** 2) + 4 / 29
+  return 116 * f - 16
+}
+
 /** Blend `amount` of `toward` into `base`, in sRGB, matching the plugin's own rule. */
 function mixHex(base, toward, amount) {
   const a = parseHex(base)
@@ -635,6 +648,29 @@ test('the neutral ramp inherits the theme cast instead of imposing one', () => {
         Math.sign(themeWarmth),
         `${id}: ramp warmth ${rampWarmth} has the opposite cast to ${themeWarmth}`,
       )
+    }
+  }
+})
+
+test('every surface step is perceptible against the page it sits on', () => {
+  // The failure this catches: a surface that differs from the canvas by less than
+  // about 1 L* is *invisible*, so a "raised" card or a "sunken" sidebar reads as
+  // the same flat plane as the page — which is how the UI ends up looking
+  // fragmentary. Both modes and all five themes are held to it.
+  const steps = [
+    ['--dsw-alias-bg-layer-3', 2.0],
+    ['--dsw-specific-input-major', 2.0],
+    ['--dsw-specific-sidebar-fill', 2.0],
+    ['--dsw-specific-bubble', 3.0],
+  ]
+  for (const id of THEME_IDS) {
+    const tokens = mount({ boot: id }).tokens()
+    for (const mode of ['light', 'dark']) {
+      const page = cieL(tokens['--dsw-alias-bg-base'][mode])
+      for (const [name, floor] of steps) {
+        const delta = Math.abs(cieL(tokens[name][mode]) - page)
+        assert.ok(delta >= floor, `${id}/${mode}: ${name} is only ${delta.toFixed(2)} L* from the page`)
+      }
     }
   }
 })

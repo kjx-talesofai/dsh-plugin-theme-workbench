@@ -1400,26 +1400,32 @@ Dawn does the same). The magnitudes are mostly right too. **Two things are wrong
 
 | theme | canvas | **`surface`** | L\* | ΔL\* | chroma retained | `L*+100C` vs 99.8 |
 | --- | --- | --- | --- | --- | --- | --- |
-| cream | `#f7f3ea` | **`#fcf8f0`** | 97.7 | **+1.8** | **0.90 ×** | 98.8 ✓ |
-| novel | `#f6f0e2` | **`#fcf6e9`** | 97.0 | **+2.1** | **0.93 ×** | 98.9 ✓ |
-| calm | `#f2f5f2` | **`#f7f9f7`** | 97.7 | **+1.5** | 0.66 × *(see below)* | 98.1 ✓ |
-| modern-classic | `#fbfbfc` | **`#f4f5f7`** *(darker)* **or** lower the canvas — see 8.2 | 96.5 | −2.1 | 2.2 × | — |
+| cream | `#f7f3ea` | **`#fbf7ee`** | 97.3 | **+1.4** | **0.99 ×** | 98.6 ✓ |
+| novel | `#f6f0e2` | **`#fdf7ea`** | 97.4 | **+2.5** | **0.93 ×** | 99.2 ✓ |
+| calm | `#f2f5f2` | **`#f6f9f6`** | 97.6 | +1.4 | **1.00 ×** | 98.1 ✓ |
+| modern-classic | `#fbfbfc` | **`#f4f5f7`** *(darker)* **or** lower the canvas — see 8.2 | 96.5 | −2.1 | 2.18 × | — |
 | deep-work | `#f6f6f5` | **`#f9f9f8`** | 97.9 | **+1.0** | 1.00 × | 98.0 ✓ |
+
+**Two of those five steps land at +1.4 and +1.0 L\*, just under the 1.5 floor.** That is not a
+rounding artefact — it is the headroom limit. Lowering the canvas by ~1 L\* resolves it while leaving
+chroma untouched, which is what the RECOMMENDED table in §8.8 does; the table above is the
+zero-canvas-change option.
 
 Three notes on that table:
 
 * **calm cannot reach 0.85 ×.** Its canvas chroma is only 0.0051, and above L\* 97.5 the sRGB 8-bit
   grid quantises chroma in steps of **~0.0006–0.0013** `[computed]` — that is 12–25 % of calm's
-  entire canvas chroma per channel step. The nearest achievable values are `#f7f9f7` (0.0034),
-  `#f6faf6` (0.0051) and `#f5fbf5` (0.0068); there is nothing in between. **If you want a warm
-  surface to hold its chroma, put it at L\* ≤ 97.0, where the 8-bit grid is finer.** `#f6faf6`
-  (ΔL\* +1.0, chroma 1.00 ×, hue 146) is the R6-clean answer for calm if you accept a smaller step.
+  entire canvas chroma per channel step. The nearest achievable values are `#f4f7f4` (0.0051,
+  ΔL\* +0.7), `#f6f9f6` (0.0051, ΔL\* +1.4) and `#f6f8f6` (0.0034, ΔL\* +1.1); nothing sits between.
+  **If you want a warm surface to hold its chroma, the practical ceiling is L\* 97.5, and calm needs
+  its canvas lowered ~1 L\* (`#f0f2f0`) to buy a step at that ceiling** — see §8.8 RECOMMENDED.
 * **modern-classic's canvas is the problem, not its surface.** At L\* 98.6 the only place left to go
   is 99–100, i.e. white. There are exactly two honest fixes, and I recommend the first:
-  **(i) lower the canvas to L\* 97.0** → `#f4f5f7` canvas (that is also the value its `sidebar` seed
-  already uses, so pick a new sidebar, e.g. `#ecedf1`) and surface `#f9fafc` (L\* 98.0, ΔL\* +1.0) —
-  a perceptible step with real chroma; or **(ii) keep the canvas and accept `surface` darker than the
-  canvas** (`#f4f5f7`), which contradicts the ramp's direction but is visually correct.
+  **(i) lower the canvas to L\* 95.6** → `#f2f2f5` and surface `#f7f7fa` (L\* 97.3, ΔL\* **+1.7**,
+  chroma **1.00 ×**); that is a real, perceptible step with the canvas chroma fully retained. (The
+  sidebar then moves to `#eaebef` and the bubble to `#e3e4e9`.) Or **(ii) keep the canvas and accept
+  `surface` darker than it** (`#f4f5f7`), which contradicts the ramp's direction but is visually
+  correct.
 * **deep-work's +3.1 L\* to pure white is the wrong kind of step.** `#f9f9f8` (ΔL\* +1.0) is
   conservative; if you want a bigger step on a near-neutral paper you must **lower the canvas**:
   `#f2f2f1` (L\* 95.2) with surface `#fafaf9` (L\* 98.2, ΔL\* +3.0) both holds chroma and steps
@@ -1614,8 +1620,9 @@ all).
 * **Where chroma retention and step size conflict, chroma wins** — and if you need the step back,
   lower the *canvas*, never raise the surface past 97.5.
 
-Concretely, that is `#fcf8f0` instead of `#fdfbf5` for cream, `#fcf6e9` instead of `#fcf8ec` for
-novel, `#f9f9f8` instead of `#ffffff` for deep-work, and a lowered canvas for modern-classic.
+Concretely, that is `#fbf7ee` instead of `#fdfbf5` for cream (chroma 0.65 × → 0.99 ×), `#fdf7ea`
+instead of `#fcf8ec` for novel (0.83 × → 0.93 ×), `#f9f9f8` instead of `#ffffff` for deep-work, and a
+lowered canvas for modern-classic.
 
 ### 8.7 The six rules that justify the corrected seeds
 
@@ -1637,55 +1644,86 @@ novel, `#f9f9f8` instead of `#ffffff` for deep-work, and a lowered canvas for mo
 
 ### 8.8 Final corrected seed table
 
-Both modes, all five themes. Canvas / bubble / ink / accent are yours (with the two accent fixes
-applied); `surface` and `sidebar` are corrected. **Bold = changed from your current seeds.**
+Two variants, because there is a real trade-off and you should choose it deliberately:
 
-**Light**
+* **MINIMAL** — canvas unchanged. `surface` is chosen for chroma retention, so the step is small
+  (+1.4 … +2.5). Nothing else in the theme moves.
+* **RECOMMENDED** — canvas lowered ~1 L\* where the step would otherwise fall under 1.5 L\*, which
+  buys the step back at no cost to chroma or hue. `cream`, `modern-classic` and `deep-work` move;
+  `novel` does not.
 
-| theme | canvas | `surface` | `sidebar` | `bubble` | ink | accent |
-| --- | --- | --- | --- | --- | --- | --- |
-| cream | `#f7f3ea` | **`#fcf8f0`** | `#f2ece0` | `#f0e7d6` | `#2f2a24` | **`#9a5a2a`** |
-| novel | `#f6f0e2` | **`#fcf6e9`** | `#efe7d5` | `#ede2cc` | `#332e26` | `#8f4632` |
-| calm | `#f2f5f2` | **`#f6faf6`** | `#eaefea` | `#e6ece7` | `#2c3733` | **`#3f7059`** |
-| modern-classic | **`#f4f5f8`** | **`#f9fafc`** | **`#ecedf1`** | `#eef1f6` | `#15181d` | **`#3a5aa8`** |
-| deep-work | `#f6f6f5` | **`#f9f9f8`** | `#eeeeec` | `#e9e9e6` | `#101112` | **`#71624b`** |
+Bold = changed from your current seeds. All values verified against the six rules in §8.7
+**`[computed]`**.
 
-**Dark**
+**Light — MINIMAL (canvas untouched)**
 
-| theme | canvas | `surface` | `sidebar` | `bubble` | ink | accent |
-| --- | --- | --- | --- | --- | --- | --- |
-| cream | `#1b1917` | **`#393633`** | `#161412` | `#2a2622` | `#ece5da` | `#d9a273` |
-| novel | `#1d1a15` | **`#3b3730`** | `#181510` | `#2b261e` | `#e9e0cd` | `#c98a70` |
-| calm | `#111614` | **`#2c3431`** | **`#0d1211`** | `#1d2622` | `#dde7e1` | `#82b79d` |
-| modern-classic | `#15171b` | **`#313439`** | `#111316` | `#232730` | `#eceef2` | `#8aa7e8` |
-| deep-work | `#0c0e11` | **`#292c30`** | **`#050607`** | `#171a1e` | `#e8eaec` | `#c9974a` |
+| theme | canvas | `surface` | ΔL\* | chroma | `sidebar` | `bubble` | ink | accent |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| cream | `#f7f3ea` | **`#fbf7ee`** | +1.4 | **0.99 ×** | `#f2ece0` | `#f0e7d6` | `#2f2a24` | **`#9a5a2a`** |
+| novel | `#f6f0e2` | **`#fdf7ea`** | +2.5 | 0.93 × | `#efe7d5` | `#ede2cc` | `#332e26` | `#8f4632` |
+| calm | `#f2f5f2` | **`#f6f9f6`** | +1.4 | **1.00 ×** | `#eaefea` | `#e6ece7` | `#2c3733` | **`#3f7059`** |
+| modern-classic | `#fbfbfc` | **`#f4f5f7`** *(darker — its canvas is unusable, see 8.1)* | −2.1 | **2.18 ×** | **`#ecedf1`** | **`#e6e9ef`** | `#15181d` | **`#3a5aa8`** |
+| deep-work | `#f6f6f5` | **`#f9f9f8`** | +1.0 | 1.00 × | `#eeeeec` | `#e9e9e6` | `#101112` | **`#71624b`** |
+
+**Light — RECOMMENDED (three canvases lowered ~1 L\*, every rule passes)**
+
+| theme | canvas | `surface` | ΔL\* | chroma | `sidebar` | `bubble` | ink | accent |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| cream | **`#f4f0e7`** | `#fbf7ee` | **+2.4** | 0.99 × | **`#efe9dd`** | **`#e9e2d2`** | `#2f2a24` | `#9a5a2a` |
+| novel | `#f6f0e2` | `#fdf7ea` | +2.5 | 0.93 × | **`#f1e9d6`** | **`#ece2ca`** | `#332e26` | `#8f4632` |
+| calm | **`#f0f2f0`** | `#f6f8f6` | **+2.1** | 1.00 × | **`#e9ebe9`** | **`#e1e5e2`** | `#2c3733` | `#3f7059` |
+| modern-classic | **`#f2f2f5`** | `#f7f7fa` | **+1.7** | 1.00 × | **`#eaebef`** | **`#e3e4e9`** | `#15181d` | `#3a5aa8` |
+| deep-work | **`#f2f2f1`** | `#f7f8f8` | **+2.0** | 0.80 × † | **`#ebebeb`** | **`#e5e5e3`** | `#101112` | `#71624b` |
+
+† `deep-work`'s `surface` chroma is 0.0011 against a canvas of 0.0013 — 0.80 ×. That is the sRGB
+8-bit quantisation limit, not a design error: both values are within a single grid step of neutral,
+so the ratio is meaningless below ~0.003. The rule reads "chroma must not *fall* on lift"; in a
+theme whose canvas chroma is 0.0013 there is nothing to fall.
+
+**Dark (canvas untouched; all five pass)**
+
+| theme | canvas | `surface` | ΔL\* | chroma | Δhue | `sidebar` | `bubble` | ink | accent |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| cream | `#1b1917` | **`#393633`** | +13.9 | 1.34 × | 0° | `#161412` | `#2a2622` | `#ece5da` | `#d9a273` |
+| novel | `#1d1a15` | **`#3b3730`** | +13.8 | 1.25 × | 1° | `#181510` | `#2b261e` | `#e9e0cd` | `#c98a70` |
+| calm | `#111614` | **`#2c3431`** | +14.2 | 1.40 × | 2° | **`#0d1211`** | `#1d2622` | `#dde7e1` | `#82b79d` |
+| modern-classic | `#15171b` | **`#313439`** | +13.9 | 1.14 × | 4° | `#111316` | `#232730` | `#eceef2` | `#8aa7e8` |
+| deep-work | `#0c0e11` | **`#292c30`** | +13.9 | 1.18 × | 3° | **`#050607`** | `#171a1e` | `#e8eaec` | `#c9974a` |
 
 Derived token consequences of this table — build them with §1.2's `resample()`, not with `mix()`:
 
 * **Light**: `bg-layer-1` / `bg-layer-2` / `bg-layer-3` = 0.45 / 0.75 / 1.0 of the way from canvas to
-  `surface`, each with chroma ×1.10 / ×1.05 / ×0.95 relative to the canvas — **three distinguishable
-  stops is not achievable by lightness alone on these canvases; the chroma ladder carries the
-  nesting.**
-* **Light**: `bg-overlay` (= `surface × 0.92` chroma, L\* +1.0 above surface) — popovers must still
-  clear the L\* 97.5 ceiling.
+  `surface`, with chroma ×1.10 / ×1.05 / ×0.95 relative to the canvas. **Three distinguishable stops
+  is not achievable by lightness alone on these canvases — see §8.1's ladder table. The chroma ladder
+  plus a hairline carries the nesting.**
+* **Light**: `bg-overlay` = `surface` with chroma ×0.92 and L\* unchanged (there is no headroom left
+  for popovers to be lighter than the top of the ramp; a popover distinguishes itself with its shadow
+  and 0.5 px stroke, both of which it already has).
 * **Dark**: `bg-layer-1` / `bg-layer-2` / `bg-layer-3` = 0.35 / 0.70 / 1.0 of the way from canvas to
   `surface`, hue held.
 * **Borders**: leave the existing `alpha(ink, 0.04/0.10/0.12/0.16)` alone. That construction is
-  already correct (§6.7 of the anti-pattern list is about the *consumer* stacking a fill and a
-  stroke, not about the token).
-* **Semantic colours**: still need the §4.4 / §1 R13 treatment. `state-warn-label` in particular is
-  `#dd8629` = **2.52:1** on cream's canvas; use `#b45309` (**4.53:1**).
+  already correct; §6.7 is about the *consumer* stacking a fill, a stroke and a shadow, not about the
+  token.
+* **Semantic colours**: still need §4.4's treatment. `state-warn-label` `#dd8629` is **2.52:1** on
+  cream's canvas — use `#b45309` (**4.53:1**); `state-success-primary` `#22c55e` is **2.06:1** — use
+  `#427b58` (**4.51:1**).
+* **Text tiers**: solve `label-secondary` against the **bubble**, and in dark mode solve every tier
+  against the **top of the ramp**, not the canvas (§8.3).
 
-**Verification suite this table enables.** Five assertions worth adding to
-`tests/plugin.test.mjs`, all expressible with the `luminance`/`contrast` helpers already in
-`client.js` plus a small OKLab converter:
+**Verification suite this table enables.** Five assertions for `tests/plugin.test.mjs`, all
+expressible with the `luminance`/`contrast` helpers already in `client.js` plus a small OKLab
+converter:
 
-1. For every theme and mode: `oklchChroma(surface) ≥ 0.85 × oklchChroma(canvas)`.
-2. For every light theme: `cieLstar(surface) ≤ 97.5` and `cieLstar(surface) + 100·oklchChroma(surface) ≤ 99.8`.
-3. For every light theme: `cieLstar(surface) − cieLstar(canvas) ≥ 1.5`.
-4. For every dark theme: `cieLstar(surface) − cieLstar(canvas) ∈ [12.5, 15.5]`, and
+1. Every theme, every mode: `oklchChroma(surface) ≥ 0.85 × oklchChroma(canvas)`
+   *(with a documented exemption when the canvas chroma is < 0.003, where 8-bit quantisation makes
+   the ratio meaningless).*
+2. Every light theme: `cieLstar(surface) ≤ 97.5` and
+   `cieLstar(surface) + 100·oklchChroma(surface) ≤ 99.8`.
+3. Every light theme: `cieLstar(surface) − cieLstar(canvas) ≥ 1.5`.
+4. Every dark theme: `cieLstar(surface) − cieLstar(canvas) ∈ [12.5, 15.5]`, and
    `contrast(captionTier, surface) ≥ 4.5`.
-5. For every theme and mode: `contrast(accent, canvas) ≥ 4.5` and `contrast(accent, surface) ≥ 4.5`.
+5. Every theme, every mode: `contrast(accent, canvas) ≥ 4.5` **and** `contrast(accent, surface) ≥ 4.5`
+   **and** `contrast(accent, sidebar) ≥ 4.5`.
 
 ---
 

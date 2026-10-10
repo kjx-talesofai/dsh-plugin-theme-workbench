@@ -110,7 +110,7 @@ function readArchive(path, want) {
  * inherits the hole.
  */
 function cssOf(path, text) {
-  if (path.endsWith('.css')) return text
+  if (path.endsWith('.css')) return stripComments(text)
   const out = []
   for (const m of text.matchAll(/const css\$?\d* = (["'`])/g)) {
     const quote = m[1]
@@ -124,9 +124,39 @@ function cssOf(path, text) {
       body += ch
       i += 1
     }
-    if (closed && /\{[^{}]*:/.test(body)) out.push(body)
+    if (closed && /\{[^{}]*:/.test(body)) out.push(stripComments(body))
   }
   return out.join('\n')
+}
+
+/**
+ * Drop `/* … *\/` comments, respecting quotes.
+ *
+ * The `.css` files ship comments, and a comment that happens to contain a brace
+ * pair and a colon becomes a fake rule: it put a `Menu.module.css` prose sentence
+ * in the selector column of an early run. Harmless for the contrast sections
+ * (a fake rule has to resolve two colours to be measured) but not for the role
+ * census in section E, which counts every token a property reads.
+ */
+function stripComments(css) {
+  let out = ''
+  let i = 0
+  while (i < css.length) {
+    const ch = css[i]
+    if (ch === '"' || ch === "'") {
+      const quote = ch
+      out += ch
+      i += 1
+      while (i < css.length && css[i] !== quote) { if (css[i] === '\\') { out += css[i]; i += 1 } out += css[i]; i += 1 }
+      out += css[i] ?? ''
+      i += 1
+      continue
+    }
+    if (ch === '/' && css[i + 1] === '*') { const end = css.indexOf('*/', i + 2); i = end === -1 ? css.length : end + 2; continue }
+    out += ch
+    i += 1
+  }
+  return out
 }
 
 /** Walk `sel{decls}` blocks, tracking at-rule nesting. */
@@ -197,6 +227,7 @@ function pluginPalettes(shipped) {
   const source = readFileSync(resolve(ROOT, 'client.js'), 'utf8')
   const boot = /const BOOT_GLOBAL = ['"]([^'"]+)['"]/.exec(source)[1]
   const out = {}
+  const written = new Set()
   for (const id of THEME_IDS) {
     const sandbox = {}
     sandbox.document = { createElement: () => ({ dataset: {}, textContent: '', remove() {} }), head: { appendChild() {} } }
@@ -229,13 +260,14 @@ function pluginPalettes(shipped) {
       slots: { inject: (_key, cb) => cb(), register: () => () => {} },
     })
     const layer = layers[layers.length - 1]
+    for (const name of Object.keys(layer)) written.add(name)
     out[id] = {}
     for (const mode of MODES) {
       out[id][mode] = { ...shipped[mode] }
       for (const [name, pair] of Object.entries(layer)) out[id][mode][name] = pair[mode]
     }
   }
-  return out
+  return { palettes: out, written }
 }
 
 // ------------------------------------------------------------------------- main
@@ -259,14 +291,27 @@ for (const chunk of chunks) {
   }
 }
 
-const palettes = pluginPalettes(shipped)
+const { palettes, written } = pluginPalettes(shipped)
 const stats = { rules: 0, measured: 0, skippedShape: 0, unresolved: new Map() }
+const FILL_PROPERTY = /^(background|background-color|fill|stroke|--[\w-]*fill|--[\w-]*bg|--[\w-]*background)$/
+const INK_PROPERTY = /^(color|border-color|border(-\w+)?-color|outline-color|caret-color|box-shadow|text-decoration-color)$/
+/** token -> { fill, ink }: which job each token is asked to do. */
+const roles = new Map()
 const rows = []
 for (const chunk of chunks) {
   for (const rule of ruleCache.get(chunk.path)) {
     const d = declarations(rule.decls)
     const bgRaw = d['background-color'] ?? d['background']
     const fgRaw = d['color']
+    for (const [prop, value] of Object.entries(d)) {
+      const fill = FILL_PROPERTY.test(prop)
+      const ink = INK_PROPERTY.test(prop)
+      if (!fill && !ink) continue
+      for (const hit of String(value).matchAll(/var\(\s*(--dsw-[a-z0-9-]+)/g)) {
+        if (!roles.has(hit[1])) roles.set(hit[1], { fill: 0, ink: 0 })
+        roles.get(hit[1])[fill ? 'fill' : 'ink'] += 1
+      }
+    }
     if (bgRaw === undefined || fgRaw === undefined) continue
     stats.rules += 1
     const bgBare = bgRaw.replace(/var\([^)]*\)/g, '')
@@ -377,6 +422,18 @@ section('B. ONE THEME BELOW THE FLOOR, THE OTHERS CLEAR', inconsistent, ({ row, 
 section('C. BELOW 3:1 WHERE THE SHIPPED PALETTE IS COMFORTABLE', severe, ({ row, mode, sh, values }) => {
   console.log(`\n[${mode}] ${row.selector}\n   bg=${row.bg}\n   fg=${row.fg}   floor=${row.floor}  shipped=${sh.toFixed(2)}  ${fmt(values)}\n   ${row.file}`)
 })
+
+const dualRole = [...roles.entries()].filter(([, r]) => r.fill > 0 && r.ink > 0)
+const oursDual = dualRole.filter(([name]) => written.has(name))
+console.log('\n########## E. TOKENS ASKED TO BE A FILL AND AN INK COLOUR ##########')
+console.log(`tokens read from the archive: ${roles.size}`)
+console.log(`of those, used as both a fill and an ink colour: ${dualRole.length}, of which this plugin writes ${oursDual.length}`)
+console.log(`\nThis is the shape every defect in this file has had: one token, two jobs, and the`)
+console.log(`two jobs need opposite luminance. Sections A to C are the verdict on whether a`)
+console.log(`given pair can actually satisfy both; the census is here to name the risk set.`)
+for (const [name, r] of oursDual.sort((a, b) => b[1].fill + b[1].ink - (a[1].fill + a[1].ink))) {
+  console.log(`   ${name.padEnd(52)} fill x${String(r.fill).padStart(3)}  ink x${String(r.ink).padStart(3)}`)
+}
 
 console.log('\n########## D. THE HEADLINE ##########')
 console.log(`pair-instances where the shipped palette reaches 4.5:1: ${readableShipped}`)

@@ -21,9 +21,9 @@ text and 4.5 otherwise, taken from the rule's own `font-size`/`font-weight`.
 | | |
 |---|---|
 | entries scanned | 106 (every `.css` file, plus the stylesheet inlined in each `dsh-client-*` bundle) |
-| rules with both a background and a color | 454 |
-| measured | 207 |
-| skipped as shape (a gradient, `url()`, `none`, or a `background: 0 0` reset) | 221 |
+| rules with both a background and a color | 467 |
+| measured | 210 |
+| skipped as shape (a gradient, `url()`, `none`, or a `background: 0 0` reset) | 231 |
 | skipped because a colour did not resolve | 26, across 18 values — the largest are `--dsw-alias-code-diff-added/-deleted`, `--dsl-code-block-background`, `--dsw-alias-bg-layer-4`, `--card-fill`, `--changes-fill`, `--deliverable-fill` |
 
 Two limits are load-bearing, and both are the reason `npm test` is not redundant:
@@ -32,14 +32,21 @@ Two limits are load-bearing, and both are the reason `npm test` is not redundant
   The audit sees only same-rule pairs. The test suite covers that case for the
   token matrix, where the pairing is known.
 - **Coverage is bounded, not implied.** The counts above are printed on every run
-  so a shrinking rule set cannot pass silently. That is not hypothetical: while
-  writing this tool a rewrite dropped 3-digit hex support, which removed `#fff`
-  from the resolvable set and made section A report a false all-clear. Printing
-  the unresolved values is what caught it.
+  so a shrinking rule set cannot pass silently. That is not hypothetical. Two
+  separate defects in this tool were caught by its own coverage lines:
+
+  1. A rewrite dropped 3-digit hex support, which removed `#fff` from the
+     resolvable set and made section A report a **false all-clear**. The
+     unresolved-value list is what gave it away.
+  2. Comments were not stripped. A prose sentence in `Menu.module.css` that
+     happens to contain a brace pair parsed as a *rule*, and — worse — a comment
+     containing a brace truncated the block after it. Stripping them **raised**
+     the measured count from 207 to 210, because 13 rules had been mis-split.
+     Line counts that can only go up for a good reason are worth printing.
 
 ## Results
 
-**The headline.** Of the 1,820 pair-instances where the shipped palette reaches
+**The headline.** Of the 1,850 pair-instances where the shipped palette reaches
 4.5:1, **zero** are below 4.5 under any of the five themes, in either mode. The
 theme is never the reason something became unreadable.
 
@@ -84,6 +91,22 @@ open and reported** rather than traded away silently.
 
 **Sections B and C: nothing.** No pair is below 3:1 where the shipped palette is
 comfortable, and no theme is an outlier against its siblings.
+
+**Section E: the shape of the problem.** Of the 122 `--dsw-*` tokens the archive
+reads, **25 are asked to be both a fill and an ink colour**, and this plugin writes
+22 of them. That is the structure every defect here has had — one token, two jobs,
+and in dark mode the two jobs want opposite luminance:
+
+| token | as a fill | as an ink colour |
+|---|---|---|
+| `state-error-primary` | `.OnRn_q_removeFailed` (white icon on it) | `.FfBBxq_cardBroken` (error text) |
+| `button-info-fill` | `.yhfFVG_primary` (white icon on it) | `.y21zpG_badge` (the Recommended chip) |
+| `state-success/-warn/-business-primary` | washes and focus rings | the state's own text |
+
+Both of the findings above are rows in that table, and the `v0.1.1` badge fix was
+the third. The census cannot say whether a given pair is satisfiable — sections A
+to C do that — but it names the risk set, which is what a reader needs to know
+where to look next.
 
 ## Fixed as a result
 

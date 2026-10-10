@@ -1,0 +1,22 @@
+# dsh-plugin-theme-workbench — bundle layer.
+#
+# One row mounts the package. The row id is load-bearing: `dsh-settings` derives
+# a plugin's settings namespace from its Loader row id, so this file's `id:` and
+# the `configForms` lookup in the browser half must stay `theme-workbench`.
+#
+# The package is dual-face (it also declares `dsh.client`), so the same row gives
+# the browser half a home. There is nothing to configure here: the theme choice
+# lives in this row's `config`, written by the settings row the client half
+# renders, and read back at index-render time for the boot injection.
+#
+# To pick a theme without the UI, edit the `config` block below:
+#
+#   - id: theme-workbench
+#     name: 'dsh-plugin-theme-workbench'
+#     config:
+#       theme: cream
+#
+# Valid ids: cream, modern-classic, novel, calm, deep-work.
+- insert:
+    - id: theme-workbench
+      name: 'dsh-plugin-theme-workbench'

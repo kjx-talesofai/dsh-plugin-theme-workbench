@@ -1,0 +1,78 @@
+{
+  "name": "dsh-plugin-theme-workbench",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "A theme manager for the DeepSeek Harness Web client: five built-in themes, each with a light and a dark palette, applied through the official ctx.theme channel and persisted as a real Host preference.",
+  "license": "MIT",
+  "author": "Jiaxin Kou <https://hypersampling.com>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kjx-talesofai/dsh-plugin-theme-workbench.git"
+  },
+  "homepage": "https://github.com/kjx-talesofai/dsh-plugin-theme-workbench",
+  "bugs": {
+    "url": "https://github.com/kjx-talesofai/dsh-plugin-theme-workbench/issues"
+  },
+  "icon": "./assets/icon.svg",
+  "main": "index.js",
+  "exports": {
+    ".": {
+      "default": "./index.js"
+    },
+    "./client": {
+      "default": "./client.js"
+    },
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./locale/*.json": "./locale/*.json",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "index.js",
+    "client.js",
+    "cordis.patch.yml",
+    "assets/icon.svg",
+    "locale/*.json",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "@deepseek-ai/schemastery": "~3.18.4"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/dsh": ">=0.2.0-rc.1 <0.3.0-0"
+  },
+  "dsh": {
+    "manifestVersion": 1,
+    "engines": {
+      "dsh": ">=0.2.0-rc.1 <0.3.0-0"
+    },
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": [
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-theme",
+        "@deepseek-ai/dsh-client-ui-settings"
+      ]
+    }
+  },
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "theme",
+    "theme-manager",
+    "appearance",
+    "palette",
+    "dark-mode"
+  ],
+  "scripts": {
+    "test": "node --test tests/plugin.test.mjs"
+  }
+}

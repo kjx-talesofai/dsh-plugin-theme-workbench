@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Theme Workbench">
+  <rect x="0" y="0" width="64" height="64" rx="14" fill="#1b1917"/>
+  <g>
+    <rect x="11" y="16" width="20" height="32" rx="5" fill="#f7f3ea"/>
+    <rect x="33" y="16" width="20" height="32" rx="5" fill="#2a2622"/>
+  </g>
+  <circle cx="32" cy="32" r="8" fill="#a8703f" stroke="#1b1917" stroke-width="2.5"/>
+</svg>

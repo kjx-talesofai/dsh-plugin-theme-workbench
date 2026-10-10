@@ -866,6 +866,31 @@ test('semantic states are re-derived for warm paper, not inherited', () => {
   }
 })
 
+test('the focus ring clears 4.5:1 on every surface it can land on', () => {
+  // WCAG 1.4.11 only asks 3:1 for a non-text indicator, but the ring is the sole
+  // cue saying where the keyboard is, so it is held to the text threshold instead.
+  // The accent is the thing at risk: two of the five were darkened to make this
+  // true on the *darkest* surface a ring can land on, which is the message bubble.
+  const surfaces = [
+    '--dsw-alias-bg-base',
+    '--dsw-alias-bg-layer-1',
+    '--dsw-specific-input-major',
+    '--dsw-specific-sidebar-fill',
+    '--dsw-specific-bubble',
+    '--dsw-alias-bg-overlay',
+  ]
+  for (const id of THEME_IDS) {
+    const tokens = mount({ boot: id }).tokens()
+    for (const mode of ['light', 'dark']) {
+      const ring = tokens['--dsw-alias-state-business-primary'][mode]
+      for (const name of surfaces) {
+        const ratio = contrast(ring, tokens[name][mode])
+        assert.ok(ratio >= 4.5, `${id}/${mode}: the focus ring is ${ratio.toFixed(2)}:1 on ${name}`)
+      }
+    }
+  }
+})
+
 test('an accent hover moves away from the fill, not into it', () => {
   for (const id of THEME_IDS) {
     const tokens = mount({ boot: id }).tokens()

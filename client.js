@@ -330,11 +330,11 @@ window.__ModuleLoader__.load({
       {
         id: 'novel',
         light: { canvas: '#f6f0e2', ink: '#332e26', accent: '#8f4632' },
-        dark: { canvas: '#1d1a15', ink: '#e9e0cd', accent: '#c98a70' },
+        dark: { canvas: '#1d1a15', ink: '#e9e0cd', accent: '#d0937a' },
       },
       {
         id: 'calm',
-        light: { canvas: '#f2f5f2', ink: '#2c3733', accent: '#4f7d68' },
+        light: { canvas: '#f2f5f2', ink: '#2c3733', accent: '#426b58' },
         dark: { canvas: '#111614', ink: '#dde7e1', accent: '#82b79d' },
       },
       {
@@ -344,7 +344,7 @@ window.__ModuleLoader__.load({
       },
       {
         id: 'cream',
-        light: { canvas: '#f7f3ea', ink: '#2f2a24', accent: '#9a5a2a' },
+        light: { canvas: '#f7f3ea', ink: '#2f2a24', accent: '#935526' },
         dark: { canvas: '#1b1917', ink: '#ece5da', accent: '#d9a273' },
       },
     ]

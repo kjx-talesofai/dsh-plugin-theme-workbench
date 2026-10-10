@@ -11,8 +11,13 @@
  *
  * Method, and why each part is here:
  *
- *   - The corpus is every `.css` file plus every `const css$N = "<...>"` stylesheet
- *     inlined in a `dsh-client-*` bundle's `lib/client.js`. Reading those inlined sheets with
+ *   - The corpus is every `.css` file plus every `.js` file that carries an inlined
+ *     stylesheet, chosen by CONTENT. A path filter is a guess and this one was
+ *     wrong — `dsh-client-<pkg>/lib/client.js` misses `client.excel.js` (the
+ *     spreadsheet preview's 302 unconditionally-light rules), `client.terminal.js`,
+ *     `client.pdf.js`, both `dsh-experimental-*` bundles and
+ *     `dsh-session-log-export`. Reading all 6,094 `.js` entries costs ~0.2 s.
+ *     Reading those inlined sheets with
  *     a regex over quoted runs silently drops whole components (ui-approval's CSS
  *     contains an escaped empty-string pair), so they are scanned with an escape-aware reader
  *     instead. A hole here is invisible: the audit simply reports fewer rules.
@@ -111,6 +116,8 @@ function readArchive(path, want) {
  */
 function cssOf(path, text) {
   if (path.endsWith('.css')) return stripComments(text)
+  // Cheap reject before the scanner: most of the 6,000 `.js` entries carry no CSS.
+  if (!/\/\/#region \\0dsh-css:|const css\$?\d* = ["'`]/.test(text)) return ''
   const out = []
   for (const m of text.matchAll(/const css\$?\d* = (["'`])/g)) {
     const quote = m[1]
@@ -271,12 +278,23 @@ function pluginPalettes(shipped) {
 }
 
 // ------------------------------------------------------------------------- main
-const chunks = readArchive(ARCHIVE, (f) => f.path.endsWith('.css') || /dsh-client-[a-z-]+\/lib\/client\.js$/.test(f.path))
+/**
+ * The corpus is selected by CONTENT, not by path.
+ *
+ * A path filter is a guess, and this one was wrong: `dsh-client-<pkg>/lib/client.js`
+ * misses `client.excel.js` (302 unconditionally-light rules for the spreadsheet
+ * preview), `client.terminal.js`, `client.pdf.js`, both `dsh-experimental-*`
+ * bundles and `dsh-session-log-export`. Reading every `.js` in the archive and
+ * keeping the ones that carry an inlined stylesheet costs about a fifth of a
+ * second and removes the guess.
+ */
+const chunks = readArchive(ARCHIVE, (f) => f.path.endsWith('.css') || f.path.endsWith('.js'))
 
 const shipped = { light: {}, dark: {} }
 const ruleCache = new Map()
 for (const chunk of chunks) {
   const css = cssOf(chunk.path, chunk.text)
+  if (css === '') continue
   const parsed = rules(css)
   ruleCache.set(chunk.path, parsed)
   for (const rule of parsed) {
@@ -297,13 +315,23 @@ const FILL_PROPERTY = /^(background|background-color|fill|stroke|--[\w-]*fill|--
 const INK_PROPERTY = /^(color|border-color|border(-\w+)?-color|outline-color|caret-color|box-shadow|text-decoration-color)$/
 /** token -> { fill, ink }: which job each token is asked to do. */
 const roles = new Map()
+/** every `--dsw-*` name read by any declaration, including other definitions. */
+const readAnywhere = new Set()
 const rows = []
 for (const chunk of chunks) {
+  if (!ruleCache.has(chunk.path)) continue
   for (const rule of ruleCache.get(chunk.path)) {
     const d = declarations(rule.decls)
     const bgRaw = d['background-color'] ?? d['background']
     const fgRaw = d['color']
     for (const [prop, value] of Object.entries(d)) {
+      // Two different questions, deliberately counted separately. `readAnywhere`
+      // answers "is this name consumed at all" and MUST include reads inside
+      // other custom-property definitions — that is where most of the neutral
+      // ramp is consumed (`--dsw-alias-x: var(--dsw-static-neutral-150)`), so
+      // counting only fill/ink properties would call 29 written names dead
+      // instead of the true handful.
+      for (const hit of String(value).matchAll(/var\(\s*(--dsw-[a-z0-9-]+)/g)) readAnywhere.add(hit[1])
       const fill = FILL_PROPERTY.test(prop)
       const ink = INK_PROPERTY.test(prop)
       if (!fill && !ink) continue
@@ -426,8 +454,12 @@ section('C. BELOW 3:1 WHERE THE SHIPPED PALETTE IS COMFORTABLE', severe, ({ row,
 const dualRole = [...roles.entries()].filter(([, r]) => r.fill > 0 && r.ink > 0)
 const oursDual = dualRole.filter(([name]) => written.has(name))
 console.log('\n########## E. TOKENS ASKED TO BE A FILL AND AN INK COLOUR ##########')
-console.log(`tokens read from the archive: ${roles.size}`)
+console.log(`tokens read from the archive: ${readAnywhere.size}`)
 console.log(`of those, used as both a fill and an ink colour: ${dualRole.length}, of which this plugin writes ${oursDual.length}`)
+const dead = [...written].filter((name) => !readAnywhere.has(name)).sort()
+console.log(`written by this plugin but never read by anything: ${dead.length}${dead.length ? ' — ' + dead.join(', ') : ''}`)
+const readsWithoutWrite = [...readAnywhere].filter((name) => !written.has(name))
+console.log(`read by the archive but not written by this plugin: ${readsWithoutWrite.length} (themed transitively or not at all)`)
 console.log(`\nThis is the shape every defect in this file has had: one token, two jobs, and the`)
 console.log(`two jobs need opposite luminance. Sections A to C are the verdict on whether a`)
 console.log(`given pair can actually satisfy both; the census is here to name the risk set.`)

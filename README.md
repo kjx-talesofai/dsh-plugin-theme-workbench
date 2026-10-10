@@ -28,7 +28,7 @@ Five themes for the **DeepSeek Harness** Web client. Each ships a **light and a 
 
 | 填入 | 形式 |
 |---|---|
-| GitHub | `github:kjx-talesofai/dsh-plugin-theme-workbench#v0.1.0`（当前可用） |
+| GitHub | `github:kjx-talesofai/dsh-plugin-theme-workbench#v0.1.1`（当前可用） |
 | 本地目录 | 绝对路径，例如 `/path/to/dsh-plugin-theme-workbench` |
 
 装完**重启桌面端**（host 半边只在启动时加载）。之后换主题**不用刷新、也不用再重启**。
@@ -76,7 +76,7 @@ Each theme is **three seed colours per mode** — a canvas, an ink and an accent
 Use DSH's plugin install dialog (**Add plugin**) with either of these, then restart the desktop app:
 
 ```text
-github:kjx-talesofai/dsh-plugin-theme-workbench#v0.1.0   # GitHub, pinned to this release
+github:kjx-talesofai/dsh-plugin-theme-workbench#v0.1.1   # GitHub, pinned to this release
 /absolute/path/to/dsh-plugin-theme-workbench             # local checkout (dev)
 ```
 
@@ -85,7 +85,7 @@ github:kjx-talesofai/dsh-plugin-theme-workbench#v0.1.0   # GitHub, pinned to thi
 CLI equivalent:
 
 ```sh
-dsh plugin --profile desktop add github:kjx-talesofai/dsh-plugin-theme-workbench#v0.1.0
+dsh plugin --profile desktop add github:kjx-talesofai/dsh-plugin-theme-workbench#v0.1.1
 ```
 
 To upgrade, uninstall first and then install the new revision — reinstalling over an existing row is not supported.

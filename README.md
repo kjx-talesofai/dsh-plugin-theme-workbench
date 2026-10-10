@@ -35,7 +35,7 @@ an existing row is not supported.
 | **Cream** (default) | `#f7f3ea` | `#1b1917` | Warm off-white paper, soft clay accent |
 
 Each theme is three seed colours per mode — a canvas, an ink and an accent — from
-which ~99 structural tokens are derived. Nothing else is hand-listed, so a theme
+which 108 structural tokens are derived. Nothing else is hand-listed, so a theme
 cannot drift out of its own hue or quietly lose its warmth.
 
 Two rules do most of the work:

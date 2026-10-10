@@ -118,6 +118,35 @@ const SHIPPED_SPECIFIC = [
   '--dsw-specific-sidebar-nav-item-active-accent', '--dsw-specific-sidebar-nav-item-hover', '--dsw-specific-tip',
 ]
 
+/**
+ * The cold-grey ramp, with the shipped lightness of each step.
+ *
+ * This plugin writes these — the one place it touches `--dsw-static-*` — because
+ * components bind local variables straight to them: the changed-files card paints
+ * its header band from `--changes-fill: var(--dsw-static-neutral-50)` and its
+ * icon tile is a 50% mix of `neutral-00`, and the deliverables card repeats it
+ * with `--deliverable-fill`. Only aliases being overridden leaves those cold grey
+ * on a warm page, which is exactly the reported white patch.
+ */
+const SHIPPED_NEUTRAL_RAMP = {
+  '--dsw-static-neutral-00': '#ffffff',
+  '--dsw-static-neutral-50': '#fafafa',
+  '--dsw-static-neutral-100': '#f5f5f5',
+  '--dsw-static-neutral-150': '#ededed',
+  '--dsw-static-neutral-200': '#e5e5e5',
+  '--dsw-static-neutral-250': '#dcdcdc',
+  '--dsw-static-neutral-300': '#d4d4d4',
+  '--dsw-static-neutral-400': '#a2a4a6',
+  '--dsw-static-neutral-500': '#7f8287',
+  '--dsw-static-neutral-550': '#65676b',
+  '--dsw-static-neutral-600': '#545557',
+  '--dsw-static-neutral-700': '#3c3c3d',
+  '--dsw-static-neutral-800': '#292929',
+  '--dsw-static-neutral-850': '#212123',
+  '--dsw-static-neutral-900': '#0f0f0f',
+  '--dsw-static-neutral-1000': '#000000',
+}
+
 /** Semantic families the themes deliberately inherit from the built-in palette. */
 const INHERITED = [
   '--dsw-alias-state-error-primary', '--dsw-alias-state-error-secondary',
@@ -128,7 +157,7 @@ const INHERITED = [
   '--dsw-alias-bg-document-selection',
 ]
 
-const ALLOWED = new Set([...SHIPPED_ALIASES, ...SHIPPED_SPECIFIC])
+const ALLOWED = new Set([...SHIPPED_ALIASES, ...SHIPPED_SPECIFIC, ...Object.keys(SHIPPED_NEUTRAL_RAMP)])
 const THEME_IDS = ['modern-classic', 'novel', 'calm', 'deep-work', 'cream']
 
 /** Read a `const NAME = '...'` string literal out of a source file. */
@@ -499,6 +528,14 @@ test('the focus ring follows the theme', () => {
   assert.equal(tokens['--dsw-alias-state-business-primary'].dark, accent.dark)
 })
 
+/** Blend `amount` of `toward` into `base`, in sRGB, matching the plugin's own rule. */
+function mixHex(base, toward, amount) {
+  const a = parseHex(base)
+  const b = parseHex(toward)
+  const channel = (index) => a[index] * (1 - amount) + b[index] * amount
+  return `#${[0, 1, 2].map((i) => Math.round(channel(i)).toString(16).padStart(2, '0')).join('')}`
+}
+
 /** Peak-to-trough spread of the channels: 0 for a neutral, larger for a tinted colour. */
 function chroma(hex) {
   const [r, g, b] = parseHex(hex)
@@ -543,6 +580,61 @@ test('the composer separates from the page without going cold', () => {
           `${id}/${mode}: the composer washed out the canvas cast (${chroma(composer)} vs ${base})`,
         )
       }
+    }
+  }
+})
+
+test('the neutral ramp is tinted without moving its lightness', () => {
+  // The ramp has to keep each step's *value*, because components re-point a
+  // variable per mode (light uses neutral-50, dark uses neutral-850), so a tint
+  // that also changed lightness would break one mode to serve the other.
+  for (const id of THEME_IDS) {
+    const tokens = mount({ boot: id }).tokens()
+    for (const [name, shipped] of Object.entries(SHIPPED_NEUTRAL_RAMP)) {
+      const tinted = tokens[name]
+      assert.ok(tinted, `${name} must be written`)
+      assert.equal(tinted.light, tinted.dark, `${name} is mode-independent by design`)
+      // A chromatic near-white cannot hold luminance 1.0, so the top step is
+      // allowed a little more room than the rest.
+      const tolerance = shipped === '#ffffff' ? 0.03 : 0.02
+      const drift = Math.abs(luminance(tinted.light) - luminance(shipped))
+      assert.ok(drift <= tolerance, `${id}: ${name} moved its lightness by ${drift.toFixed(4)}`)
+    }
+
+    // The property that actually matters: the ramp still descends.
+    const ladder = Object.keys(SHIPPED_NEUTRAL_RAMP).map((name) => luminance(tokens[name].light))
+    for (let step = 1; step < ladder.length; step += 1) {
+      assert.ok(ladder[step] < ladder[step - 1], `${id}: the ramp is no longer monotonic at step ${step}`)
+    }
+  }
+})
+
+test('the neutral ramp inherits the theme cast instead of imposing one', () => {
+  // Measured against the theme's mid-tone, not its canvas: Modern Classic has a
+  // neutral canvas but a cool ink, so its cast lives in the mid-tone.
+  const warmth = (hex) => {
+    const [r, , b] = parseHex(hex)
+    return r - b
+  }
+  for (const id of THEME_IDS) {
+    const tokens = mount({ boot: id }).tokens()
+    const mid = mixHex(tokens['--dsw-alias-bg-base'].light, tokens['--dsw-alias-label-primary'].light, 0.5)
+    const themeWarmth = warmth(mid)
+    const rampWarmth = warmth(tokens['--dsw-static-neutral-50'].light)
+
+    assert.ok(
+      Math.abs(rampWarmth - themeWarmth) <= 5,
+      `${id}: ramp warmth ${rampWarmth} does not track the theme's ${themeWarmth}`,
+    )
+    if (Math.abs(themeWarmth) <= 2) {
+      // A deliberately neutral theme must not be handed a cast.
+      assert.ok(Math.abs(rampWarmth) <= 2, `${id}: neutral theme got ramp warmth ${rampWarmth}`)
+    } else {
+      assert.equal(
+        Math.sign(rampWarmth),
+        Math.sign(themeWarmth),
+        `${id}: ramp warmth ${rampWarmth} has the opposite cast to ${themeWarmth}`,
+      )
     }
   }
 })

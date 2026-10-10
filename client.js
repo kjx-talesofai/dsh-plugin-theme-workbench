@@ -148,6 +148,79 @@ window.__ModuleLoader__.load({
       return `${toHex(c.r, c.g, c.b)}${a.toString(16).padStart(2, '0')}`
     }
 
+    /** sRGB channel (0..1) to linear light. */
+    function toLinear(channel) {
+      return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4
+    }
+
+    /** Linear light back to an sRGB channel (0..1). */
+    function toSrgb(channel) {
+      return channel <= 0.0031308 ? channel * 12.92 : 1.055 * channel ** (1 / 2.4) - 0.055
+    }
+
+    /**
+     * Hex to OKLab.
+     *
+     * OKLab rather than HSL because the job below is "keep the lightness, change
+     * the hue, impose a small chroma" — and HSL cannot express that near white.
+     * Its saturation is relative to the remaining headroom, so at lightness 0.995
+     * a saturation of 0.09 works out to a chroma of 0.0009 and rounds away to
+     * grey. OKLab's chroma is absolute and perceptually even, so one setting holds
+     * from the near-white end of the ramp to the near-black end.
+     */
+    function toOklab(color) {
+      const { r, g, b } = parseHex(color)
+      const lr = toLinear(r / 255)
+      const lg = toLinear(g / 255)
+      const lb = toLinear(b / 255)
+      const l = Math.cbrt(0.4122214708 * lr + 0.5363325363 * lg + 0.0514459929 * lb)
+      const m = Math.cbrt(0.2119034982 * lr + 0.6806995451 * lg + 0.1073969566 * lb)
+      const s = Math.cbrt(0.0883024619 * lr + 0.2817188376 * lg + 0.6299787005 * lb)
+      return {
+        lightness: 0.2104542553 * l + 0.793617785 * m - 0.0040720468 * s,
+        a: 1.9779984951 * l - 2.428592205 * m + 0.4505937099 * s,
+        b: 0.0259040371 * l + 0.7827717662 * m - 0.808675766 * s,
+      }
+    }
+
+    /** OKLab to linear-light sRGB channels, which may fall outside the gamut. */
+    function oklabToLinear({ lightness, a, b }) {
+      const l = (lightness + 0.3963377774 * a + 0.2158037573 * b) ** 3
+      const m = (lightness - 0.1055613458 * a - 0.0638541728 * b) ** 3
+      const s = (lightness - 0.0894841775 * a - 1.291485548 * b) ** 3
+      return [
+        4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s,
+        -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s,
+        -0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s,
+      ]
+    }
+
+    /**
+     * OKLab to hex, pulling chroma back until the colour is displayable.
+     *
+     * A tint that is fine at mid lightness can fall out of gamut at the extremes
+     * of the ramp, so the chroma is reduced rather than the channel clipped: that
+     * keeps the hue and the lightness, which are the two things this must not
+     * disturb.
+     */
+    function oklabToHex(lab) {
+      const inGamut = (channels) => channels.every((c) => c >= -0.0005 && c <= 1.0005)
+      let { a, b } = lab
+      if (!inGamut(oklabToLinear({ ...lab, a, b }))) {
+        let low = 0
+        let high = 1
+        for (let step = 0; step < 20; step += 1) {
+          const mid = (low + high) / 2
+          if (inGamut(oklabToLinear({ ...lab, a: a * mid, b: b * mid }))) low = mid
+          else high = mid
+        }
+        a *= low
+        b *= low
+      }
+      const channels = oklabToLinear({ ...lab, a, b }).map((c) => toSrgb(Math.min(1, Math.max(0, c))) * 255)
+      return toHex(channels[0], channels[1], channels[2])
+    }
+
     /** WCAG 2.1 relative luminance. */
     function luminance(color) {
       const { r, g, b } = parseHex(color)
@@ -271,6 +344,87 @@ window.__ModuleLoader__.load({
         dark: { canvas: '#1b1917', surface: '#3d3831', sidebar: '#161412', bubble: '#2a2622', ink: '#ece5da', accent: '#d9a273', code: '#141210' },
       },
     ]
+
+    /**
+     * The shipped cold-grey ramp, which some components bind to directly.
+     *
+     * The alias layer is not the only way a component can reach a colour. The
+     * changed-files card does `--changes-fill: var(--dsw-static-neutral-50)` and
+     * paints its header band with it, and its icon tile is a 50% mix of
+     * `neutral-00`; the deliverables card repeats the pattern with
+     * `--deliverable-fill`. Those are raw ramp entries, so a theme that only
+     * overrides aliases leaves them cold grey — white patches on a warm page.
+     * Warming the ramp is what reaches them, which is also why this is the one
+     * place this plugin writes `--dsw-static-*`: the inventory notes the ramp is
+     * "not validated anywhere; the palette is only a convention", and the aliases
+     * that consume it are all overridden here anyway, so the only aliases that
+     * change are the ones this plugin deliberately leaves to the built-in palette.
+     */
+    const STATIC_NEUTRALS = {
+      'neutral-00': '#ffffff',
+      'neutral-50': '#fafafa',
+      'neutral-100': '#f5f5f5',
+      'neutral-150': '#ededed',
+      'neutral-200': '#e5e5e5',
+      'neutral-250': '#dcdcdc',
+      'neutral-300': '#d4d4d4',
+      'neutral-400': '#a2a4a6',
+      'neutral-500': '#7f8287',
+      'neutral-550': '#65676b',
+      'neutral-600': '#545557',
+      'neutral-700': '#3c3c3d',
+      'neutral-800': '#292929',
+      'neutral-850': '#212123',
+      'neutral-900': '#0f0f0f',
+      'neutral-1000': '#000000',
+    }
+
+    /**
+     * Saturation to impose on the ramp, and the ceiling on lightness.
+     *
+     * Pure white cannot carry a hue at lightness 1, so the top step is pulled a
+     * hair below it — that is what turns `#ffffff` into a tinted white instead of
+     * leaving it inert.
+     */
+    const NEUTRAL_CHROMA_MAX = 0.014
+    /** Share of the theme's own chroma the ramp is allowed to carry. */
+    const NEUTRAL_CHROMA_SHARE = 0.7
+    const NEUTRAL_LIGHTNESS_CEILING = 0.995
+
+    /**
+     * A warm counterpart of the cold-grey ramp.
+     *
+     * Only the hue and saturation move; lightness is left where it was, so each
+     * step keeps its exact place in the ramp
+     * and a component that re-points a variable per mode still works
+     * (`body[data-ds-dark-theme] .card{--changes-fill: var(--dsw-static-neutral-850)}`).
+     * That is why the ramp is emitted with the same value in both modes: the mode
+     * switch happens in the component, not in the ramp.
+     *
+     * @param theme - one entry of {@link THEMES}; the light seeds name the hue
+     *   and how much chroma the ramp may carry.
+     * @returns token name to an identical `{ light, dark }` pair.
+     */
+    function warmNeutrals(theme) {
+      // The theme's own hue, taken from the middle of its canvas-to-ink axis.
+      const seed = toOklab(mix(theme.light.canvas, theme.light.ink, 0.5))
+      const hue = Math.atan2(seed.b, seed.a)
+      // Scaled to the theme's *own* chroma, so a deliberately neutral theme
+      // (Deep Work) keeps a neutral ramp and a warm one gets a warm ramp — the
+      // ramp inherits the theme's cast instead of having one imposed on it.
+      const chroma = Math.min(NEUTRAL_CHROMA_MAX, Math.hypot(seed.a, seed.b) * NEUTRAL_CHROMA_SHARE)
+      const ramp = {}
+      for (const [step, value] of Object.entries(STATIC_NEUTRALS)) {
+        const { lightness } = toOklab(value)
+        const tinted = oklabToHex({
+          lightness: Math.min(lightness, NEUTRAL_LIGHTNESS_CEILING),
+          a: Math.cos(hue) * chroma,
+          b: Math.sin(hue) * chroma,
+        })
+        ramp[`--dsw-static-${step}`] = { light: tinted, dark: tinted }
+      }
+      return ramp
+    }
 
     /** Look a theme up by id, or `undefined`. */
     function themeById(id) {
@@ -504,7 +658,8 @@ window.__ModuleLoader__.load({
       const dark = buildTokens({ ...theme.dark }, true)
       const layer = {}
       for (const name of Object.keys(light)) layer[name] = { light: light[name], dark: dark[name] }
-      return layer
+      // Components that skip the alias layer still have to land on a warm ramp.
+      return { ...layer, ...warmNeutrals(theme) }
     }
 
     // ---------------------------------------------------------------------

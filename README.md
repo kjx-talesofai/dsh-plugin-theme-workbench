@@ -73,18 +73,47 @@ approaching it.
 
 ## What this is not
 
-A palette plugin, not a full reskin. Fonts, corner radii, syntax highlighting and
-wallpapers live on `:root` / `--shiki-*`, which the theme presenter never writes
-to (it sets inline custom properties on `body`), so they are out of reach by
-design. If you want those, you need a plugin that injects its own stylesheet — and
-it should still call `overrideTokens` for the palette, so the `theme-color`
-metadata and the native window chrome follow along.
+A palette plugin, not a full reskin. A custom property on `:root` still inherits
+into `body`, so a `body`-level override *does* win for body's descendants — which
+means syntax colours (`--shiki-token-*`), fonts and corner radii are technically
+reachable from here, and a plugin that wants them can set them the same way. What
+is genuinely out of reach is a shorter list:
+
+- **Anything declared on `body, body *`.** The `--dsw-elevation-stroke` /
+  `-panel` / `-prominent` / `-soft` shadow recipes are re-declared on *every*
+  element, so a `body` override is shadowed everywhere and shadows cannot be
+  re-themed. Their colour does follow the theme, because that part
+  (`--dsw-elevation-stroke-color`) is body-level and reads `border-l4`.
+- **Native material.** On macOS the sidebar column is Electron vibrancy, not a
+  painted fill: the only CSS is a `color-mix` that dilutes this plugin's
+  `--dsw-specific-sidebar-fill` to 38.8% of a 40%-alpha layer, over a hardcoded
+  blue gradient, over whatever is behind the window. The sidebar is therefore
+  *tinted*, never recoloured, and the same is true of the window backdrop. That is
+  the platform's translucency, not something a token can or should defeat.
+- **Hardcoded literals in component CSS** — a few macOS-only fills such as the
+  new-session button's `#ffffff8c`, which no token feeds.
+
+If you want a deeper reskin, inject your own stylesheet — but still call
+`overrideTokens` for the palette, so the `theme-color` metadata and the native
+window chrome follow along.
 
 ## Requirements
 
 - DSH `>=0.2.0-rc.1 <0.3.0-0`, web client.
 - A loopback page. DSH runs its settings scope in memory on a non-loopback
   address, where a theme still applies for the session but is not persisted.
+
+## Known limitations
+
+- **The macOS sidebar only tints.** See above: it is a native translucent
+  material, and this plugin's sidebar token reaches only 38.8% of a 40%-alpha
+  layer of it. The sidebar's icons, hover and active states do follow the theme;
+  its background cannot be made opaque without discarding the platform's
+  translucency.
+- **Shadows are fixed.** The elevation recipes are re-declared per element, so
+  their geometry and alpha apply unchanged; only their hairline colour follows.
+- **Non-loopback pages do not persist.** DSH keeps its settings scope in memory
+  off loopback, so the theme applies for the session and resets on reload.
 
 ## Configure without the UI
 
@@ -104,13 +133,16 @@ profile's `cordis.patch.yml`:
 npm test
 ```
 
-`docs/token-inventory.md` is a reference for the DSH 0.2.0-rc.2 token surface:
-where the light/dark palettes actually live, how a snapshot reaches the DOM, all
-101 of the 107 `--dsw-alias-*` names carry both mode values, and the traps a theme
-author
-hits (`brand-primary` is *not* the accent; `menu-icon` and `turn-trigger-bg`
-derive from different sources per mode; ten aliases are consumed but declared
-nowhere). It is dev-only and not shipped.
+Two references back the implementation, both dev-only and neither shipped:
+
+- `docs/token-inventory.md` — the token surface of DSH 0.2.0-rc.2: where the
+  light/dark palettes actually live, how a snapshot reaches the DOM, all 107
+  `--dsw-alias-*` names (101 of which carry both mode values), and the traps a
+  theme author hits (`brand-primary` is *not* the accent; `menu-icon` and
+  `turn-trigger-bg` derive from different sources per mode; ten aliases are
+  consumed but declared nowhere).
+- `docs/surface-map.md` — which token paints which surface, which surfaces are
+  re-declared locally, and what a `body`-level override can never reach.
 
 ## License
 

@@ -235,6 +235,8 @@ window.__ModuleLoader__.load({
      * Six seeds per mode:
      *   `canvas`  the application background — the surface the user actually
      *             stares at, so it carries the theme's character
+     *   `surface` the theme's offset surface: the lightest tone the theme is
+     *             willing to use for a raised card, composer or popover
      *   `sidebar` the sidebar column, which the shipped palette tints
      *             separately from the canvas
      *   `bubble`  the user message bubble
@@ -245,28 +247,28 @@ window.__ModuleLoader__.load({
     const THEMES = [
       {
         id: 'modern-classic',
-        light: { canvas: '#fbfbfc', sidebar: '#f4f5f7', bubble: '#eef1f6', ink: '#15181d', accent: '#2f4b8f', code: '#f6f7f9' },
-        dark: { canvas: '#15171b', sidebar: '#111316', bubble: '#232730', ink: '#eceef2', accent: '#8aa7e8', code: '#101215' },
+        light: { canvas: '#fbfbfc', surface: '#ffffff', sidebar: '#f4f5f7', bubble: '#eef1f6', ink: '#15181d', accent: '#2f4b8f', code: '#f6f7f9' },
+        dark: { canvas: '#15171b', surface: '#35393f', sidebar: '#111316', bubble: '#232730', ink: '#eceef2', accent: '#8aa7e8', code: '#101215' },
       },
       {
         id: 'novel',
-        light: { canvas: '#f6f0e2', sidebar: '#efe7d5', bubble: '#ede2cc', ink: '#332e26', accent: '#8f4632', code: '#f1ead9' },
-        dark: { canvas: '#1d1a15', sidebar: '#181510', bubble: '#2b261e', ink: '#e9e0cd', accent: '#c98a70', code: '#16130f' },
+        light: { canvas: '#f6f0e2', surface: '#fcf8ec', sidebar: '#efe7d5', bubble: '#ede2cc', ink: '#332e26', accent: '#8f4632', code: '#f1ead9' },
+        dark: { canvas: '#1d1a15', surface: '#3d372c', sidebar: '#181510', bubble: '#2b261e', ink: '#e9e0cd', accent: '#c98a70', code: '#16130f' },
       },
       {
         id: 'calm',
-        light: { canvas: '#f2f5f2', sidebar: '#eaefea', bubble: '#e6ece7', ink: '#2c3733', accent: '#4f7d68', code: '#edf1ed' },
-        dark: { canvas: '#111614', sidebar: '#0d1210', bubble: '#1d2622', ink: '#dde7e1', accent: '#82b79d', code: '#0c100e' },
+        light: { canvas: '#f2f5f2', surface: '#fafcfa', sidebar: '#eaefea', bubble: '#e6ece7', ink: '#2c3733', accent: '#4f7d68', code: '#edf1ed' },
+        dark: { canvas: '#111614', surface: '#2c352f', sidebar: '#0d1210', bubble: '#1d2622', ink: '#dde7e1', accent: '#82b79d', code: '#0c100e' },
       },
       {
         id: 'deep-work',
-        light: { canvas: '#f6f6f5', sidebar: '#eeeeec', bubble: '#e9e9e6', ink: '#101112', accent: '#8a5a1e', code: '#f0f0ee' },
-        dark: { canvas: '#0c0e11', sidebar: '#090a0c', bubble: '#171a1e', ink: '#e8eaec', accent: '#c9974a', code: '#080a0c' },
+        light: { canvas: '#f6f6f5', surface: '#ffffff', sidebar: '#eeeeec', bubble: '#e9e9e6', ink: '#101112', accent: '#8a5a1e', code: '#f0f0ee' },
+        dark: { canvas: '#0c0e11', surface: '#2b3037', sidebar: '#090a0c', bubble: '#171a1e', ink: '#e8eaec', accent: '#c9974a', code: '#080a0c' },
       },
       {
         id: 'cream',
-        light: { canvas: '#f7f3ea', sidebar: '#f2ece0', bubble: '#f0e7d6', ink: '#2f2a24', accent: '#a8703f', code: '#f3eee3' },
-        dark: { canvas: '#1b1917', sidebar: '#161412', bubble: '#2a2622', ink: '#ece5da', accent: '#d9a273', code: '#141210' },
+        light: { canvas: '#f7f3ea', surface: '#fdfbf5', sidebar: '#f2ece0', bubble: '#f0e7d6', ink: '#2f2a24', accent: '#a8703f', code: '#f3eee3' },
+        dark: { canvas: '#1b1917', surface: '#3d3831', sidebar: '#161412', bubble: '#2a2622', ink: '#ece5da', accent: '#d9a273', code: '#141210' },
       },
     ]
 
@@ -301,12 +303,22 @@ window.__ModuleLoader__.load({
       const WHITE = '#ffffff'
       const BLACK = '#000000'
       const canvas = seeds.canvas
+      const surface = seeds.surface
       const ink = seeds.ink
       const accent = seeds.accent
       const sidebar = seeds.sidebar
 
-      /** Toward white: a raised card in either mode. */
-      const up = (weight) => mix(canvas, WHITE, weight)
+      /**
+       * Toward the theme's own surface seed.
+       *
+       * Deliberately NOT toward pure white. Mixing a cream canvas toward white
+       * spends the theme's chroma, so every raised surface — cards, popovers and
+       * above all the composer — lands as a cold white patch on a warm page.
+       * Letting each theme name its own surface keeps the hue, and one seed
+       * covers both modes because a dark theme's surface is simply lighter than
+       * its canvas, which also collapses the old per-mode weight asymmetry.
+       */
+      const up = (weight) => mix(canvas, surface, weight)
       /** Away from the text: toward ink in light mode, toward black in dark mode. */
       const down = (weight) => mix(canvas, dark ? BLACK : ink, weight)
       /** A fraction of the way from the canvas to the ink. */
@@ -334,7 +346,7 @@ window.__ModuleLoader__.load({
       const borderL3 = line(dark ? 0.16 : 0.12)
       const borderL4 = line(dark ? 0.2 : 0.16)
 
-      const codeBlock = seeds.code ?? (dark ? up(0.06) : down(0.032))
+      const codeBlock = seeds.code ?? (dark ? up(0.55) : down(0.032))
       const interactiveHover = line(dark ? 0.08 : 0.05)
       const interactiveActive = line(dark ? 0.12 : 0.08)
       // `brand-primary` in the shipped palette is NOT the accent: it is the
@@ -347,22 +359,22 @@ window.__ModuleLoader__.load({
       // deepseek-400 to the darker deepseek-500. Getting this backwards makes
       // hover read as a pressed state.
       const accentHover = dark ? mix(accent, BLACK, 0.15) : mix(accent, WHITE, 0.12)
-      const menuSurface = alpha(up(dark ? 0.12 : 0.6), dark ? 0.45 : 0.58)
-      const tooltipBg = dark ? up(0.16) : mix(canvas, ink, 0.84)
+      const menuSurface = alpha(up(0.85), dark ? 0.45 : 0.58)
+      const tooltipBg = dark ? up(0.95) : mix(canvas, ink, 0.84)
 
       return {
         // Surfaces.
         '--dsw-alias-bg-base': canvas,
-        '--dsw-alias-bg-layer-1': up(dark ? 0.035 : 0.55),
-        '--dsw-alias-bg-layer-2': up(dark ? 0.07 : 0.72),
-        '--dsw-alias-bg-layer-3': up(dark ? 0.105 : 0.85),
+        '--dsw-alias-bg-layer-1': up(0.42),
+        '--dsw-alias-bg-layer-2': up(0.72),
+        '--dsw-alias-bg-layer-3': up(1),
         // Overlays sit *below* the canvas in light mode (the shipped value is
         // bluish-150, a shade darker than white) and clearly above it in dark
         // mode, so this is one of the tokens whose direction flips per mode.
-        '--dsw-alias-bg-overlay': dark ? mix(canvas, WHITE, 0.28) : down(0.05),
-        '--dsw-alias-bg-module-platform': dark ? up(0.12) : down(0.035),
-        '--dsw-alias-bg-multi-select': dark ? up(0.09) : down(0.04),
-        '--dsw-alias-bg-document-preview': dark ? canvas : down(0.025),
+        '--dsw-alias-bg-overlay': dark ? up(0.8) : down(0.05),
+        '--dsw-alias-bg-module-platform': dark ? up(0.55) : down(0.035),
+        '--dsw-alias-bg-multi-select': dark ? up(0.5) : down(0.04),
+        '--dsw-alias-bg-document-preview': dark ? up(0.3) : down(0.025),
         '--dsw-alias-bg-skeleton': alpha(dark ? WHITE : BLACK, dark ? 0.08 : 0.04),
 
         // Hairlines. `border-l2-darkmode-thin` equals l1 in dark and l2 in light
@@ -383,7 +395,7 @@ window.__ModuleLoader__.load({
         '--dsw-alias-label-primary-dimmed': text(0.96),
         '--dsw-alias-label-primary-bluish': mix(ink, accent, 0.15),
         '--dsw-alias-label-primary-foreground': dark ? mix(canvas, BLACK, 0.9) : WHITE,
-        '--dsw-alias-label-primary-inverted': dark ? up(0.16) : WHITE,
+        '--dsw-alias-label-primary-inverted': dark ? up(0.9) : WHITE,
         '--dsw-alias-label-document-preview': labelSecondary,
         '--dsw-alias-label-shimmer': alpha(dark ? WHITE : BLACK, dark ? 0.45 : 0.3),
         '--dsw-alias-label-deep-diving': dark ? mix(accent, WHITE, 0.6) : mix(accent, BLACK, 0.15),
@@ -416,9 +428,9 @@ window.__ModuleLoader__.load({
         '--dsw-alias-button-primary-hover': mix(brandPrimary, canvas, 0.18),
         '--dsw-alias-button-primary-dimmed': mix(canvas, ink, dark ? 0.18 : 0.08),
         '--dsw-alias-button-contrast-fill': mix(canvas, ink, dark ? 0.95 : 0.72),
-        '--dsw-alias-button-elevated-fill': up(dark ? 0.06 : 0.8),
-        '--dsw-alias-button-floating-fill': up(dark ? 0.08 : 0.75),
-        '--dsw-alias-button-floating-hover': dark ? up(0.12) : mix(canvas, ink, 0.055),
+        '--dsw-alias-button-elevated-fill': up(0.85),
+        '--dsw-alias-button-floating-fill': up(0.8),
+        '--dsw-alias-button-floating-hover': dark ? up(0.95) : mix(canvas, ink, 0.055),
         '--dsw-alias-button-ghost-active-fill': mix(canvas, ink, dark ? 0.12 : 0.06),
         '--dsw-alias-button-ghost-active-hover': mix(canvas, ink, dark ? 0.16 : 0.09),
         '--dsw-alias-button-ghost-active-border': mix(ink, canvas, dark ? 0.45 : 0.55),
@@ -433,23 +445,23 @@ window.__ModuleLoader__.load({
 
         // Menus, toasts, tooltips.
         '--dsw-alias-menu-icon': dark ? text(0.96) : text(0.82),
-        '--dsw-alias-menu-group-header-fill': alpha(up(dark ? 0.1 : 0.6), 0.94),
+        '--dsw-alias-menu-group-header-fill': alpha(up(0.85), 0.94),
         '--dsw-menu-surface-fill': menuSurface,
         '--dsw-specific-menu': menuSurface,
-        '--dsw-alias-toast-bg': dark ? up(0.16) : mix(canvas, ink, 0.86),
-        '--dsw-alias-toast-label': dark ? up(0.94) : WHITE,
+        '--dsw-alias-toast-bg': dark ? up(0.95) : mix(canvas, ink, 0.86),
+        '--dsw-alias-toast-label': dark ? mix(surface, WHITE, 0.8) : WHITE,
         '--dsw-alias-tooltip-bg': tooltipBg,
         '--dsw-alias-tooltip-key-bg': mix(tooltipBg, WHITE, 0.18),
 
         // Markdown and code.
         '--dsw-alias-markdown-code-block': codeBlock,
-        '--dsw-alias-markdown-code-block-banner': dark ? up(0.14) : down(0.042),
-        '--dsw-alias-markdown-code-segment-selected': dark ? up(0.1) : up(0.7),
+        '--dsw-alias-markdown-code-block-banner': dark ? up(0.85) : down(0.042),
+        '--dsw-alias-markdown-code-segment-selected': up(0.85),
         '--dsw-alias-markdown-code-segment-unselected': dark ? codeBlock : down(0.05),
-        '--dsw-alias-markdown-inline-code': dark ? up(0.055) : down(0.045),
-        '--dsw-alias-markdown-citation': dark ? up(0.1) : down(0.06),
-        '--dsw-alias-markdown-placeholder': dark ? up(0.09) : down(0.03),
-        '--dsw-alias-markdown-tag': dark ? up(0.09) : down(0.05),
+        '--dsw-alias-markdown-inline-code': dark ? up(0.5) : down(0.045),
+        '--dsw-alias-markdown-citation': dark ? up(0.7) : down(0.06),
+        '--dsw-alias-markdown-placeholder': dark ? up(0.55) : down(0.03),
+        '--dsw-alias-markdown-tag': dark ? up(0.55) : down(0.05),
 
         // Turn-trigger notices derive from different sources per mode upstream;
         // mirror that so the resting card keeps contrasting with the transcript.
@@ -457,13 +469,13 @@ window.__ModuleLoader__.load({
         '--dsw-alias-turn-trigger-bg-hover': dark ? interactiveActive : interactiveHover,
 
         // Scrollbars.
-        '--dsw-alias-scrollbar-bg-l1': dark ? up(0.16) : mix(canvas, ink, 0.1),
-        '--dsw-alias-scrollbar-bg-l2': dark ? up(0.2) : mix(canvas, ink, 0.1),
-        '--dsw-alias-scrollbar-hover-l1': dark ? up(0.24) : mix(canvas, ink, 0.16),
-        '--dsw-alias-scrollbar-hover-l2': dark ? up(0.3) : mix(canvas, ink, 0.16),
+        '--dsw-alias-scrollbar-bg-l1': mix(canvas, ink, dark ? 0.16 : 0.1),
+        '--dsw-alias-scrollbar-bg-l2': mix(canvas, ink, dark ? 0.2 : 0.1),
+        '--dsw-alias-scrollbar-hover-l1': mix(canvas, ink, dark ? 0.24 : 0.16),
+        '--dsw-alias-scrollbar-hover-l2': mix(canvas, ink, dark ? 0.3 : 0.16),
 
         // Controls.
-        '--dsw-alias-switch-thumb': dark ? mix(canvas, ink, 0.55) : up(0.85),
+        '--dsw-alias-switch-thumb': dark ? mix(canvas, ink, 0.55) : up(0.9),
 
         // View-specific surfaces.
         '--dsw-specific-sidebar-fill': sidebar,
@@ -472,10 +484,10 @@ window.__ModuleLoader__.load({
         '--dsw-specific-sidebar-nav-item-active-accent': mix(accent, sidebar, dark ? 0.22 : 0.12),
         '--dsw-specific-bubble': seeds.bubble,
         '--dsw-specific-bubble-highlight': mix(seeds.bubble, accent, dark ? 0.18 : 0.1),
-        '--dsw-specific-input-major': up(dark ? 0.06 : 0.85),
+        '--dsw-specific-input-major': up(0.9),
         '--dsw-specific-login-input': dark ? down(0.35) : down(0.01),
-        '--dsw-specific-selector': dark ? up(0.09) : down(0.03),
-        '--dsw-specific-tip': dark ? up(0.09) : down(0.03),
+        '--dsw-specific-selector': dark ? up(0.55) : down(0.03),
+        '--dsw-specific-tip': dark ? up(0.55) : down(0.03),
       }
     }
 

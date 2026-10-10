@@ -40,7 +40,7 @@ an existing row is not supported.
 | Deep Work | `#f6f6f5` | `#0c0e11` | Near-monochrome, high contrast, muted bronze |
 | **Cream** (default) | `#f7f3ea` | `#1b1917` | Warm off-white paper, soft clay accent |
 
-Each theme is six seed colours per mode, from which ~83 structural tokens are
+Each theme is seven seed colours per mode, from which ~83 structural tokens are
 derived. Text tiers are **solved for a contrast target** rather than faded by a
 fixed fraction, so a warm sepia or sage ink is exactly as legible as the shipped
 near-black one: the palette DSH ships puts `label-tertiary` at 3.71:1 in light

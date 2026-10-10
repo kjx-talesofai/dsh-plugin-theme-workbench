@@ -499,18 +499,51 @@ test('the focus ring follows the theme', () => {
   assert.equal(tokens['--dsw-alias-state-business-primary'].dark, accent.dark)
 })
 
-test('dark raised surfaces are lighter than the canvas and light ones are too', () => {
-  const tokens = mount().tokens()
-  const canvas = tokens['--dsw-alias-bg-base']
-  for (const mode of ['light', 'dark']) {
-    assert.ok(
-      luminance(tokens['--dsw-alias-bg-layer-1'][mode]) > luminance(canvas[mode]),
-      `layer-1 must read as raised in ${mode}`,
-    )
-    assert.ok(
-      luminance(tokens['--dsw-alias-bg-layer-2'][mode]) > luminance(tokens['--dsw-alias-bg-layer-1'][mode]),
-      `layer-2 must be above layer-1 in ${mode}`,
-    )
+/** Peak-to-trough spread of the channels: 0 for a neutral, larger for a tinted colour. */
+function chroma(hex) {
+  const [r, g, b] = parseHex(hex)
+  return Math.max(r, g, b) - Math.min(r, g, b)
+}
+
+test('the raised ramp climbs away from the canvas in every theme and mode', () => {
+  for (const id of THEME_IDS) {
+    const tokens = mount({ boot: id }).tokens()
+    for (const mode of ['light', 'dark']) {
+      const ladder = [
+        '--dsw-alias-bg-base',
+        '--dsw-alias-bg-layer-1',
+        '--dsw-alias-bg-layer-2',
+        '--dsw-alias-bg-layer-3',
+      ].map((name) => luminance(tokens[name][mode]))
+      for (let step = 1; step < ladder.length; step += 1) {
+        assert.ok(
+          ladder[step] >= ladder[step - 1] - 0.0005,
+          `${id}/${mode}: surface ${step} is not above surface ${step - 1}`,
+        )
+      }
+    }
+  }
+})
+
+test('the composer separates from the page without going cold', () => {
+  // The defect this guards: deriving "raised" surfaces by mixing the canvas
+  // toward pure white spends the theme's chroma, so the composer and cards land
+  // as cold white patches on a warm page. It must separate from the canvas, and
+  // when the canvas carries colour the composer has to keep that cast.
+  for (const id of THEME_IDS) {
+    const tokens = mount({ boot: id }).tokens()
+    for (const mode of ['light', 'dark']) {
+      const canvas = tokens['--dsw-alias-bg-base'][mode]
+      const composer = tokens['--dsw-specific-input-major'][mode]
+      assert.notEqual(composer, canvas, `${id}/${mode}: the composer must separate from the page`)
+      const base = chroma(canvas)
+      if (base >= 4) {
+        assert.ok(
+          chroma(composer) >= base * 0.4,
+          `${id}/${mode}: the composer washed out the canvas cast (${chroma(composer)} vs ${base})`,
+        )
+      }
+    }
   }
 })
 

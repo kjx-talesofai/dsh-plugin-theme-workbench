@@ -28,7 +28,7 @@ Five themes for the **DeepSeek Harness** Web client. Each ships a **light and a 
 
 | 填入 | 形式 |
 |---|---|
-| GitHub | `github:kjx-talesofai/dsh-plugin-theme-workbench#v0.1.3`（当前可用） |
+| GitHub | `github:kjx-talesofai/dsh-plugin-theme-workbench#v0.1.4`（当前可用） |
 | 本地目录 | 绝对路径，例如 `/path/to/dsh-plugin-theme-workbench` |
 
 装完**重启桌面端**（host 半边只在启动时加载）。之后换主题**不用刷新、也不用再重启**。
@@ -44,7 +44,7 @@ Five themes for the **DeepSeek Harness** Web client. Each ships a **light and a 
 
 **卸载**：DSH「插件」列表里卸载 `dsh-plugin-theme-workbench` → 重启。主题选择留在你 profile 的 `cordis.patch.yml` 里，想一起清掉就把那段 `- id: theme-workbench` 删掉。
 
-**老实说（实测范围）**：只在 **macOS（Apple Silicon）+ DSH Desktop 0.2.0-rc.2** 上端到端跑过（浅色、深色、切换、落盘、卡片观感都实际看过）。Windows / Linux 未测；DSH 升级后上游契约可能变化，见下方 Compatibility。
+**老实说（实测范围）**：只在 **macOS（Apple Silicon）+ DSH Desktop 0.2.0-rc.2** 上端到端跑过（浅色、深色、切换、落盘、卡片观感都实际看过）；升级到 **0.2.1-rc.2** 后重核：本插件写入的 86 个 `--dsw-alias-*` 名字在打包产物里一个都没少，设置里「外观」那一行也还在。Windows / Linux 未测；DSH 升级后上游契约可能变化，见下方 Compatibility。
 
 </details>
 
@@ -76,7 +76,7 @@ Each theme is **three seed colours per mode** — a canvas, an ink and an accent
 Use DSH's plugin install dialog (**Add plugin**) with either of these, then restart the desktop app:
 
 ```text
-github:kjx-talesofai/dsh-plugin-theme-workbench#v0.1.3   # GitHub, pinned to this release
+github:kjx-talesofai/dsh-plugin-theme-workbench#v0.1.4   # GitHub, pinned to this release
 /absolute/path/to/dsh-plugin-theme-workbench             # local checkout (dev)
 ```
 
@@ -85,7 +85,7 @@ github:kjx-talesofai/dsh-plugin-theme-workbench#v0.1.3   # GitHub, pinned to thi
 CLI equivalent:
 
 ```sh
-dsh plugin --profile desktop add github:kjx-talesofai/dsh-plugin-theme-workbench#v0.1.3
+dsh plugin --profile desktop add github:kjx-talesofai/dsh-plugin-theme-workbench#v0.1.4
 ```
 
 To upgrade, uninstall first and then install the new revision — reinstalling over an existing row is not supported.
@@ -164,7 +164,7 @@ Everything above is measured by the test suite: the direction of every step, the
 
 ## Compatibility
 
-Verified end-to-end on **macOS (Apple Silicon) · DSH Desktop 0.2.0-rc.2**, with the light and dark palettes, live switching and persistence all confirmed by eye and by inspecting the running theme service.
+Verified end-to-end on **macOS (Apple Silicon) · DSH Desktop 0.2.0-rc.2**, with the light and dark palettes, live switching and persistence all confirmed by eye and by inspecting the running theme service. Re-checked after the app moved to **0.2.1-rc.2**: all 86 `--dsw-alias-*` names this plugin writes are still declared by the shipped bundle (read out of `app.asar`, not assumed), and its row still seats in General.
 
 Upstream contracts this plugin depends on, all pinned by the test suite:
 
@@ -177,7 +177,7 @@ Upstream contracts this plugin depends on, all pinned by the test suite:
 | A client bundle needs `dsh.client.platform` **and** `exports["./client"]` | `dsh-client-modules` |
 | The 107 `--dsw-alias-*` names and their light/dark values | `dsh-client-ui-theme` |
 
-Not tested: Windows, Linux, and DSH versions other than 0.2.0-rc.2. Run `npm test` first after a DSH upgrade — the allowlist of token names is a deliberate snapshot, so an upstream rename fails loudly instead of silently leaking the built-in colour.
+Not tested: Windows, Linux, and DSH versions other than 0.2.0-rc.2 and 0.2.1-rc.2. Run `npm test` first after a DSH upgrade — the allowlist of token names is a deliberate snapshot, so an upstream rename fails loudly instead of silently leaking the built-in colour.
 
 ## Development
 
